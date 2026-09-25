@@ -1,0 +1,33 @@
+{
+  "status": "passed",
+  "archi": "5.10.0.202608252016",
+  "jArchi": "1.12.0.202604070605",
+  "checks": [
+    "Graal collector expands Service Bus, Functions and SQL without duplicate database",
+    "Creates all valid resource-group and service relationships",
+    "Generated relationships are in Relationships / Azure",
+    "Composition, assignment and serving share the Azure relationship folder",
+    "Generated relationships record actual source and target Archi GUIDs",
+    "Individual Function uses Technology Function",
+    "Child records parent Azure ID",
+    "Service Bus consists of queues and topics",
+    "Function App assigns Technology Function without invalid Node composition",
+    "SQL server serves its database",
+    "No diagrams or specializations generated",
+    "Repeated sync preserves all relationship IDs",
+    "GUID matching reuses a renamed relationship in a legacy folder despite stale cached metadata",
+    "Migration to Azure preserves relationship GUID and creation date",
+    "Stored endpoint GUIDs refresh from actual endpoints",
+    "Relationship root follows configured name without changing folder identity",
+    "Translated relationship category is resolved without hardcoded label",
+    "Relationship matching includes type and preserves unrelated links",
+    "Deletion soft-deletes owned composition, assignment and serving links",
+    "Repeated deletion retains relationship deletion timestamps",
+    "Child restoration retains concept and relationship identity",
+    "Unselected service relationships keep timestamps",
+    "Manual serving relationship reused without ownership takeover",
+    "Reused manual relationships keep their original folder",
+    "Children and mixed relationship types survive save/reload",
+    "Relationship folder and endpoint GUID metadata survive save/reload"
+  ]
+}

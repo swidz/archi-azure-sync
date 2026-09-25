@@ -25,7 +25,7 @@ Use the same tenant, selected subscriptions and interactive authentication metho
 
 Every page must complete. A 403, failed list request, malformed response or invalid parent ID aborts the entire run before model changes. Listing failures are never treated as empty collections. An absent existing child receives an individual GET before soft deletion; ambiguous 404 responses stop the run. Recognized Function NotFound and Service Bus MessagingEntityNotFound responses are accepted only after that parent's child collection completed successfully. Collection and verification are not a transactional Azure snapshot; changes during collection can require a retry.
 
-Repeated syncs reuse concepts and relationships by identity and relationship type/direction. Manually authored matching relationships retain their names/properties and are not taken over. Owned composition, assignment and serving links share soft-deletion/restoration behavior: they remain in the model, preserving IDs and original creation timestamps. No existing diagrams are formatted by Sync.
+Repeated syncs reuse concepts by Azure identity and relationships by actual source and target Archi GUIDs plus type. Generated links live in **Relationships → Azure** (or the configured AZURE_ROOT_FOLDER); existing owned links in the selected scope are relocated there on the next sync without changing their GUIDs. Manually authored matching relationships retain their names, properties and folders and are not taken over. Owned composition, assignment and serving links share soft-deletion/restoration behavior: they remain in the model, preserving IDs and original creation timestamps. No existing diagrams are formatted by Sync.
 
 ## Documented APIs
 
@@ -44,7 +44,7 @@ Missing individual Functions use [Get Function](https://learn.microsoft.com/en-u
 
 1. Open a copy of your model and run Sync with your usual subscription IDs.
 2. Review the additional child-element and relationship counts. Existing database Nodes should be updates rather than duplicates.
-3. Inspect the Function element type, Azure-ParentObjectId, and relationship directions in the model's Relationships folder.
+3. Inspect the Function element type, Azure-ParentObjectId, and relationship directions in **Relationships → Azure**.
 4. Run Sync again and check that no duplicate child Nodes/functions or relationships appear.
 5. If desired, place children in your own view and run the separate appearance utility for icons.
 

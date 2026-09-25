@@ -106,8 +106,11 @@
     relations.forEach(function(r){ok(String(r.type)==="composition-relationship" && String(r.name)==="composed of" && String(r.source.prop("Azure-SubscriptionId"))===String(r.target.prop("Azure-SubscriptionId")),"Valid composition direction and subscription scope");});
     rr=rSync();ok(rr.relationships.created===0 && rRels().map(function(r){return String(r.id);}).sort().join(",")===relationIds,"Repeated sync reuses relationship IDs without duplicates");
     var ownedLink,unselectedLink;relations.forEach(function(r){if(String(r.target.prop("Azure-ObjectId"))===r1.id)ownedLink=r;if(String(r.target.prop("Azure-ObjectId"))===r2.id)unselectedLink=r;});
+    var relationAzure=$(ownedLink).parent().first(),relationLayer=$(relationAzure).parent().first(),legacyRelations=relationLayer.createFolder("Legacy scoped links");
+    legacyRelations.add(ownedLink);legacyRelations.add(unselectedLink);
     var savedUnselected=String(unselectedLink.prop("LastSyncDate")),createdDate=String(ownedLink.prop("CreatedDate"));
     rs.subscriptionIds=[sub];rs.completedSubscriptions=[sub];rs.resources=first;rs.confirmedMissing=[C.identity(tenant,r1.id)];rs.collectedAt="2026-09-26T11:22:33Z";rSync();
+    ok(String($(ownedLink).parent().first().id)===String(relationAzure.id) && String($(unselectedLink).parent().first().id)===String(legacyRelations.id),"Relationship folder migration respects selected subscription scope");
     ok(String(ownedLink.prop("IsDeleted"))==="yes" && String(ownedLink.prop("DeletedDate"))==="2026-09-26","Deleted resource soft-deletes its owned composition");
     rs.collectedAt="2026-09-27T01:02:03Z";rSync();ok(String(ownedLink.prop("DeletedDate"))==="2026-09-26","Repeated missing run retains relationship deletion date");
     ok(String(unselectedLink.prop("LastSyncDate"))===savedUnselected && String(unselectedLink.prop("IsDeleted"))==="no","Unselected relationships retain metadata");

@@ -99,7 +99,7 @@ var AZURE_ROOT_FOLDER = "Azure";
 var AZURE_USE_SPECIALIZATIONS = false;
 ~~~
 
-- AZURE_ROOT_FOLDER controls the first custom folder below Technology & Physical. It is a model-folder name, not a filesystem path.
+- AZURE_ROOT_FOLDER controls the custom root name under both Technology & Physical and Relationships. The default creates Technology & Physical → Azure for elements and Relationships → Azure for generated links. It is a model-folder name, not a filesystem path.
 - AZURE_USE_SPECIALIZATIONS defaults to false. Resources are ordinary Nodes, except individual Azure Functions use Technology Function. Setting it to true explicitly enables creation/assignment of the mapped native specializations; Sync creates new profiles without images and retains existing profile images.
 
 Sync does not load icon assets, assign custom images or change diagram image/text placement. If you want Azure icons, configure and run the separate **Apply Azure Appearance.ajs** utility described in section 8. Users who prefer plain Archi shapes can skip it.
@@ -138,7 +138,7 @@ Technology & Physical
 
 Each object type uses its full ARM type as one folder label, including slashes. Subscription folders include the display name and ID so identical display names remain distinct. Resources without a resource group go in **Other**. A real resource group named Other gets **Other (resource group)**, so it stays separate from that fallback folder.
 
-Managed folder identity is recorded in folder properties. Repeat runs reuse folders, and subscription-name changes update the label. Changing AZURE_ROOT_FOLDER renames the managed root. Existing managed elements from older versions are moved into this hierarchy during the next applied sync, preserving concept IDs, relationships and diagram references. Unselected subscription elements are not moved or reformatted. Empty folders are retained; the script never deletes model folders.
+Managed folder identity is recorded in folder properties. Repeat runs reuse folders, and subscription-name changes update the label. Changing AZURE_ROOT_FOLDER renames the managed roots under both Technology & Physical and Relationships. Existing managed elements from older versions are moved into this hierarchy during the next applied sync, preserving concept IDs, relationships and diagram references. Unselected subscription elements are not moved or reformatted. Empty folders are retained; the script never deletes model folders.
 
 If a desired folder name is already occupied by an unrelated, unowned folder, the script reports the conflict rather than taking ownership. If application started, use Edit → Undo before renaming that conflicting folder or choosing another root name and rerunning.
 
@@ -149,9 +149,11 @@ The sync creates ArchiMate **composition** relationships labelled **composed of*
 - Subscription Node → each resource group Node in that subscription.
 - Resource group Node → each resource Node belonging to that group, including queues/topics and SQL databases. Individual Technology Functions are linked through their Function App using assignment; Node-to-Technology-Function composition is invalid in Archi.
 
-Find them in the model's Relationships folder. They express whole-to-part containment, with the composition diamond at the parent. Existing links with matching source/target are reused, so repeating Sync adds no duplicates. Manual relationships retain their labels and properties. Script-owned links are retained with deletion timestamps when either endpoint disappears and restored when both endpoints return. Unselected subscriptions are untouched.
+Find generated links in **Relationships → Azure**. Archi stores relationship concepts in its separate Relationships category. This Azure folder also holds the generated assignment and serving links described below. Composition links express whole-to-part containment, with the composition diamond at the parent. Each run searches the whole model using the actual **source element GUID and target element GUID**, plus relationship type. Renaming or moving a link does not cause a duplicate; different relationship types between the same endpoints remain distinct. Manual matching relationships retain their labels, properties and folders. Script-owned links are retained with deletion timestamps when either endpoint disappears and restored when both endpoints return. Unselected subscriptions are untouched.
 
 The **Other** folder is not an Azure resource group: it has no synthetic Node or composition links. If a parent Node is missing from inventory, the preview reports it and that link is skipped. The script never creates a view or draws connections. Add existing relationships to your manually created diagrams using Archi when desired.
+
+Owned links from older versions move into Relationships → Azure on the next applied sync for their selected tenant/subscriptions. Their relationship GUIDs, creation timestamps and existing diagram connections are preserved. Azure-SourceElementId and Azure-TargetElementId record the actual Archi endpoint GUIDs; Azure-SourceObjectId and Azure-TargetObjectId continue to record the ARM IDs. The actual relationship endpoints are authoritative; stale cached properties are refreshed. Links outside the selected scope are not moved.
 
 ### Service children and their relationships
 
@@ -226,6 +228,8 @@ Version 0.6 adds child collectors and service relationships. Preserve any local 
 Version 0.5 makes custom icons entirely optional. If you previously customized image/text positions in Sync Azure.ajs, move those values into Apply Azure Appearance.ajs. Existing custom images are retained, not removed or reformatted by Sync.
 
 Run Sync Azure on a copy of the existing model first. The default next run reorganizes scoped elements and detaches script-owned specialization assignments without adding custom images. It preserves IDs, documentation and diagram layout, reuses existing containment relationships and creates any missing ones. Save/reopen and run again to verify no duplicate concepts or folders before using the updated script for your regular model.
+
+Version 0.7 adds the Relationships → Azure folder and explicit endpoint GUID properties. After updating the complete package, run Sync Azure.ajs normally and apply: existing owned links in the selected scope are relocated automatically without changing their identity. No utility script is needed.
 
 ## 12. Scope and verification
 

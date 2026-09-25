@@ -8,7 +8,7 @@ Resources default to ordinary Technology-layer **Nodes**; individual Azure Funct
 
 **Icons are optional. Sync Azure.ajs does not add custom images or change diagram image/text placement.** Run **scripts/utils/Apply Azure Appearance.ajs** only if you want Azure icons on Nodes you have manually placed in views. It runs locally, without Azure authentication. Bundled images have a maximum dimension of **48 pixels**; the utility defaults to images at **Top Center** and names at **Bottom Center**. Specializations remain off by default.
 
-Sync creates **composition relationships named "composed of"** from each subscription to its resource groups and from each resource group to its Node resources. It also collects Service Bus queues/topics, individual Azure Functions and SQL databases with the [service relationships described here](docs/child-resources.md). Repeated runs reuse existing links. **No script generates diagrams or diagram connections.**
+Sync creates **composition relationships named "composed of"** from each subscription to its resource groups and from each resource group to its Node resources. It also collects Service Bus queues/topics, individual Azure Functions and SQL databases with the [service relationships described here](docs/child-resources.md). Generated relationships are stored in **Relationships → Azure**, using the same AZURE_ROOT_FOLDER setting. Repeated runs search the entire model by actual **source element GUID + target element GUID + relationship type** and reuse existing links. **No script generates diagrams or diagram connections.**
 
 ## Quick start
 
@@ -30,7 +30,7 @@ var AZURE_ROOT_FOLDER = "Azure";
 var AZURE_USE_SPECIALIZATIONS = false;
 ~~~
 
-Subscription folder labels include display name and GUID. Full ARM types form single folder labels. Missing resource groups use Other; a real group named Other is labelled Other (resource group). Changing the root name renames the managed root. Empty folders are retained.
+Subscription folder labels include display name and GUID. Full ARM types form single folder labels. Missing resource groups use Other; a real group named Other is labelled Other (resource group). Changing the root name renames the managed roots under Technology & Physical and Relationships. Empty folders are retained.
 
 Optional appearance settings live in **scripts/utils/Apply Azure Appearance.ajs**:
 
@@ -83,7 +83,7 @@ Resource groups and subscriptions are also Nodes. A group's resource-group prope
 
 The whole is the source and the part is the target: **subscription → resource group → resource**. Node resources returned by inventory link directly to their resource group. Technology Functions link through their Function App using assignment, because Archi rejects Node-to-Technology-Function composition. Links are ArchiMate composition relationships in the model, named **composed of**. Add existing relationships to a view manually when needed.
 
-Existing composition, assignment and serving relationships are matched by type, source and target and reused. Manually authored relationships keep their names and properties. Script-owned links carry endpoint ARM IDs, tenant/subscription IDs, ownership and creation/deletion/last-sync timestamps. They are retained and marked deleted when either endpoint is soft-deleted, and restored when both endpoints return. Unselected subscriptions remain untouched.
+Existing composition, assignment and serving relationships are matched using their actual source and target Archi element GUIDs, with type as an additional qualifier. Names, folders and cached properties do not determine identity. Manually authored matching relationships keep their names, properties and folders. On the next applied sync, existing script-owned links in the selected tenant/subscriptions move into **Relationships → Azure**, retaining their relationship GUIDs, creation timestamps and diagram references. Script-owned links carry Azure-SourceElementId and Azure-TargetElementId (Archi GUIDs), Azure-SourceObjectId and Azure-TargetObjectId (ARM IDs), tenant/subscription IDs, ownership and creation/deletion/last-sync timestamps. Cached endpoint properties are refreshed from the actual endpoints. They are retained and marked deleted when either endpoint is soft-deleted, and restored when both endpoints return. Unselected subscriptions remain untouched.
 
 **Other** is only a folder. Resources without a resource group receive no invented group or group relationship. A missing parent Node is reported in the preview and its link is skipped. The explicit service links are namespace → queue/topic composition ("consists of"), Function App → Technology Function assignment ("performs"), and SQL server → database serving ("serves"). No application call dependencies or network topology are inferred.
 

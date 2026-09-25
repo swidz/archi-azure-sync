@@ -15,11 +15,15 @@
     var snapshot=AzureClient.create(io,{accessToken:'synthetic',expiresAt:now+3600000}).inventory({tenantId:tenant,subscriptionIds:[sub]},[]);
     ok(snapshot.resources.length===9 && responses.length===0,'Graal collector expands Service Bus, Functions and SQL without duplicate database');
     var m=$.model.create('Azure child resources smoke');m.setAsCurrent();var map=C.mappings(AZURE_SPECIALIZATIONS),views=$(m).find('view').size();
-    function sync(){var p=C.plan(AzureArchi.readElements(m),snapshot,map);var result=AzureArchi.apply(m,p,{});return {plan:p,result:result};}
+    function sync(options){var p=C.plan(AzureArchi.readElements(m),snapshot,map,options);var result=AzureArchi.apply(m,p,options);return {plan:p,result:result};}
     function concept(id){var found;$(m).find('element').each(function(e){e=e.concept||e;if(String(e.prop('Azure-ObjectId'))===id)found=e;});return found;}
     function relationships(){var out=[];$(m).find('relationship').each(function(r){out.push(r);});return out;}
     function link(a,b,type){return relationships().filter(function(r){return String(r.source.prop('Azure-ObjectId'))===a.id && String(r.target.prop('Azure-ObjectId'))===b.id && String(r.type)===type;})[0];}
     var first=sync();ok(first.result.relationships.created===11 && relationships().length===11,'Creates all valid resource-group and service relationships');
+    var relationFolder=$(relationships()[0]).parent().first(),relationFolderId=String(relationFolder.id),relationLayer=$(relationFolder).parent().first();
+    ok(String(relationFolder.name)==='Azure' && String($(relationLayer).parent().first().id)===String(m.id),'Generated relationships are in Relationships / Azure');
+    ok(relationships().every(function(r){return String($(r).parent().first().id)===relationFolderId;}),'Composition, assignment and serving share the Azure relationship folder');
+    ok(relationships().every(function(r){return String(r.prop('Azure-SourceElementId'))===String(r.source.id) && String(r.prop('Azure-TargetElementId'))===String(r.target.id);}), 'Generated relationships record actual source and target Archi GUIDs');
     ok(String(concept(f.id).type)==='technology-function','Individual Function uses Technology Function');
     ok(String(concept(f.id).prop('Azure-ParentObjectId'))===app.id,'Child records parent Azure ID');
     ok(String(link(bus,q,'composition-relationship').name)==='consists of' && !!link(bus,t,'composition-relationship'),'Service Bus consists of queues and topics');
@@ -28,6 +32,15 @@
     ok($(m).find('view').size()===views && m.specializations.length===0,'No diagrams or specializations generated');
     var ids=relationships().map(function(r){return String(r.id);}).sort().join(','),elementIds=AzureArchi.readElements(m).map(function(e){return e.id;}).sort().join(',');
     ok(sync().result.relationships.created===0 && relationships().map(function(r){return String(r.id);}).sort().join(',')===ids,'Repeated sync preserves all relationship IDs');
+    var legacy=relationLayer.createFolder('Legacy relationships'),candidate=link(bus,q,'composition-relationship'),candidateId=String(candidate.id);
+    legacy.add(candidate);candidate.name='Customized relationship label';candidate.prop('Azure-SourceElementId','stale');candidate.prop('Azure-TargetElementId','stale');candidate.prop('Azure-SourceObjectId','stale');
+    var createdDate=String(candidate.prop('CreatedDate'));
+    ok(sync().result.relationships.created===0 && String(candidate.id)===candidateId && String(candidate.name)==='Customized relationship label','GUID matching reuses a renamed relationship in a legacy folder despite stale cached metadata');
+    ok(String($(candidate).parent().first().id)===relationFolderId && String(candidate.prop('CreatedDate'))===createdDate,'Migration to Azure preserves relationship GUID and creation date');
+    ok(String(candidate.prop('Azure-SourceElementId'))===String(candidate.source.id) && String(candidate.prop('Azure-TargetElementId'))===String(candidate.target.id),'Stored endpoint GUIDs refresh from actual endpoints');
+    relationLayer.name='Translated Relationships';sync({rootFolderName:'Cloud estate'});
+    ok(String(relationFolder.name)==='Cloud estate' && String(relationFolder.id)===relationFolderId,'Relationship root follows configured name without changing folder identity');
+    sync();ok(String(relationFolder.name)==='Azure','Translated relationship category is resolved without hardcoded label');
     // A different relation type between the same endpoints must not mask an existing serving link.
     var extra=m.createRelationship('association-relationship','User note',concept(sql.id),concept(db.id));sync();
     ok(relationships().length===12 && !!link(sql,db,'serving-relationship'),'Relationship matching includes type and preserves unrelated links');
@@ -43,10 +56,13 @@
     ok(owned.map(function(r){return String(r.prop('LastSyncDate'));}).join(',')===saved,'Unselected service relationships keep timestamps');
     snapshot.subscriptionIds=[sub];snapshot.completedSubscriptions=[sub];snapshot.resources=original;
     var serving=link(sql,db,'serving-relationship'),source=serving.source,target=serving.target;serving.delete();
-    var manual=m.createRelationship('serving-relationship','Manual serves',source,target);manual.prop('UserNote','preserve');
+    var manual=m.createRelationship('serving-relationship','Manual serves',source,target);manual.prop('UserNote','preserve');var manualParent=String($(manual).parent().first().id);
     ok(sync().result.relationships.created===0 && String(manual.name)==='Manual serves' && !manual.prop('Azure-SyncManagedBy'),'Manual serving relationship reused without ownership takeover');
+    ok(String($(manual).parent().first().id)===manualParent,'Reused manual relationships keep their original folder');
     var dir=AzureJava.resolve(root,'work');Java.type('java.nio.file.Files').createDirectories(Paths.get(dir));m.save(dir+'/children-smoke.archimate');var loaded=$.model.load(dir+'/children-smoke.archimate');
     ok(AzureArchi.readElements(loaded).length===9 && $(loaded).find('relationship').size()===12,'Children and mixed relationship types survive save/reload');
+    var loadedOwned=[];$(loaded).find('relationship').each(function(r){if(String(r.prop('Azure-SyncManagedBy'))===C.OWNER)loadedOwned.push(r);});
+    ok(loadedOwned.every(function(r){return String($(r).parent().first().id)===relationFolderId && String(r.prop('Azure-SourceElementId'))===String(r.source.id);}), 'Relationship folder and endpoint GUID metadata survive save/reload');
     AzureJava.write(dir+'/children-smoke-result.json',JSON.stringify({status:'passed',archi:String($.process.release.archiVersion),jArchi:String($.process.release.jArchiVersion),checks:checks},null,2));
     console.log('ARCHI_AZURE_CHILDREN_SMOKE_PASSED');
 }());
