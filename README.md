@@ -10,7 +10,7 @@ Resources default to ordinary Technology-layer **Nodes**; individual Azure Funct
 
 Sync creates **unnamed composition relationships** from each subscription to its resource groups and from each resource group to its Node resources. It also collects Service Bus queues/topics, individual Azure Functions and SQL databases with the [service relationships described here](docs/child-resources.md). Generated relationships follow their **source object** under **Relationships → Azure → Source subscription → Source resource group (or Other) → Source object type**, using the same AZURE_ROOT_FOLDER setting. Repeated runs search the entire model by actual **source element GUID + target element GUID + relationship type** and reuse existing links. **No script generates diagrams or diagram connections.**
 
-Entra app registrations are imported as **Nodes** under **Azure → Entra ID [tenant GUID] → App registrations**. This is enabled by default and requires Microsoft Graph read access. See [Entra setup and scope](docs/entra-applications.md) before your first upgraded run; set AZURE_INCLUDE_ENTRA_APPLICATIONS=false for ARM-only sync.
+Entra app registrations are imported as **Nodes** under **Azure → Entra ID [tenant GUID] → App registrations**. This is enabled by default and requires Microsoft Graph read access. Denied Graph access is reported in the Scripts output window; readable ARM resources still synchronize. See [Entra setup and scope](docs/entra-applications.md) before your first upgraded run; set AZURE_INCLUDE_ENTRA_APPLICATIONS=false for ARM-only sync.
 
 ## Quick start
 
@@ -79,7 +79,7 @@ config/specializations.js contains **3,407 editable type/base/icon mappings** (3
 
 Dates use YYYY-MM-DD; times use UTC HH:mm:ssZ. One timestamp is used for the run. Restoration retains the element ID, relationships and original Created values and clears Deleted values. Resource elements are never physically deleted.
 
-LastSync values advance on every successfully applied run, including unchanged resources. Failed/cancelled runs leave them unchanged so they cannot masquerade as successful synchronization. Unselected elements retain their timestamps.
+LastSync values advance for elements successfully reconciled in the applied run, including unchanged readable resources. Unverified elements retain all their existing properties and timestamps during partial runs. Cancelled runs do not apply changes. See [partial synchronization and output warnings](docs/partial-sync.md).
 
 Resource groups and subscriptions are also Nodes. A group's resource-group properties refer to itself; a subscription's are empty.
 
@@ -101,8 +101,9 @@ The script stores only non-secret configuration and synchronization metadata:
 
 - Azure-AuthMethod — selectable device-code or azure-cli authentication, remembered after successful sync.
 - Azure-TenantId, Azure-ClientId, Azure-SubscriptionIds — next-run defaults; CLI does not require a client ID.
-- Azure-LastSuccessfulSyncAt, Azure-LastSuccessfulSyncSubscriptions — last applied run.
-- Azure-LastSuccessfulEntraSyncAt — last applied run including Entra applications.
+- Azure-LastSuccessfulSyncAt, Azure-LastSuccessfulSyncSubscriptions — last fully completed applied run; partial runs do not advance these.
+- Azure-LastSuccessfulEntraSyncAt — last complete applied Entra inventory.
+- Azure-LastSyncAttemptAt, Azure-LastSyncStatus, Azure-LastSyncWarningCount — latest applied run time, complete/partial status and collection warning count.
 - Azure-SyncSpecializations — ownership registry for managed profiles.
 
 An optional Azure-UserId property may document an expected account but is not used to authenticate; the browser determines the signed-in account. There is no password/secret prompt or token storage in the model. Direct device sign-in has no persistent token cache and requests no offline_access scope. The CLI option reuses Azure CLI's own local authentication cache, which must stay outside your Git repositories. Both methods hold the current token in memory during the run and clear the retained reference afterward. JVM memory cannot guarantee immediate secure erasure.
@@ -112,16 +113,18 @@ The **script repository** is separate from the **model repository**. Scripts do 
 ## Reconciliation and failures
 
 - ARM identity is case-insensitive **tenant ID + ARM resource ID**; Entra applications use a separate tenant + Graph Object ID identity.
-- All selected subscriptions and enabled Entra application pages/checks must complete before model changes.
+- Collection finishes before model application. Recoverable read failures are printed as warnings, and readable inventory is still offered for application.
 - Pagination stays on the selected subscription and fixed ARM host; redirects are disabled.
-- HTTP 429/5xx receive bounded retries. Malformed responses, duplicate identities, token expiry, disabled subscriptions or tenant mismatch abort.
-- Missing list entries are individually fetched using provider-advertised API versions. Only recognized resource-not-found errors permit soft deletion. HTTP 403, ambiguous 404 and unavailable API metadata abort.
+- HTTP 429/5xx receive bounded retries. Permission/consent errors, unavailable subscriptions, expired tokens, network failures, malformed list pages and exhausted retries skip the affected reads and continue. Tenant/identity mismatches, unsafe pagination and duplicate identities still stop before mutation.
+- Missing list entries are individually fetched using supported API versions. Only recognized resource-not-found responses in a completely read subscription or Entra tenant permit deletion. Any incomplete read disables deletion for that subscription, or for the Entra app collection. HTTP 403 and uncertain 404s never mean deletion.
 - A move/rename that changes the ARM ID creates a new identity and soft-deletes the old identity after verification.
 - Descriptions, unrelated properties, relationships and diagram layouts survive. Azure-owned names/properties refresh.
 - Base-type changes stop with an explanation; change the type deliberately in Archi first.
 - Sync never loads icon assets, including when specialization creation is enabled. New profiles created by Sync have no image; existing profile images are retained. The optional Manage Azure Specializations utility can install profile icons, which Archi may display through its own profile inheritance. Sync does not switch any diagram image source.
 - Specializations are opt-in. With the flag off, scoped script-owned assignments are detached, while definitions and unowned assignments remain. The guarded utility can explicitly remove owned profiles.
-- Network/authentication/validation failures occur before mutation. An exceptional failure during image import or application can leave partial in-memory changes; use **Edit → Undo** before retrying. The script uses public jArchi undoable APIs.
+- Read failures are reported in the Scripts output window and summarized in the preview/final dialog. Unknown errors and model conflicts still stop; an exceptional failure during application can leave partial in-memory changes, so use **Edit → Undo** before retrying. The script uses public jArchi undoable APIs.
+
+Partial runs update owned relationships only when both endpoints were reconciled; links involving unreadable endpoints remain unchanged. See [error handling and partial-run examples](docs/partial-sync.md).
 
 To **explicitly adopt** an existing manually maintained Azure element, set its exact Azure-TenantId, Azure-SubscriptionId, Azure-ObjectId, Azure-ObjectType, original CreatedDate/CreatedTime, and Azure-SyncManagedBy=archi-azure-sync/v1. Ensure only one concept has the identity. Otherwise identity collisions are rejected.
 

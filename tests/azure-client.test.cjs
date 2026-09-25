@@ -29,10 +29,11 @@ test("inventory paginates and includes subscription/resource group containers",(
     assert.equal(s.resources.length,3);assert.deepEqual(s.completedSubscriptions,[H.sub]);
     assert.equal(s.resources[1].type,"Microsoft.Resources/resourceGroups");
 });
-test("failed later page aborts the whole inventory",()=>{
+test("failed later page retains earlier objects and reports incomplete scope",()=>{
     const next="https://management.azure.com/subscriptions/"+H.sub+"/resources?next=1";
     const io=H.io([H.ok(H.info),H.page([]),H.page([H.raw],next),{status:403,body:{error:{code:"AuthorizationFailed"}}}]);
-    assert.throws(()=>A.create(io,H.token).inventory(cfg,[]),/403/);
+    const snap=A.create(io,H.token).inventory(cfg,[]);
+    assert.equal(snap.resources.length,2);assert.equal(snap.partial,true);assert.deepEqual(snap.completedSubscriptions,[]);assert.match(snap.warnings[0].message,/403/);
 });
 test("foreign and cross-subscription nextLinks never receive tokens",()=>{
     for(const next of ["https://evil.example/steal","https://management.azure.com/subscriptions/"+H.otherSub+"/resources",
@@ -73,16 +74,20 @@ test("access loss and ambiguous 404 cannot mark deletion",()=>{
     for(const response of [{status:403,body:{error:{code:"AuthorizationFailed"}}},
         {status:404,body:{error:{code:"NoRegisteredProviderFound"}}}]) {
         const io=H.io([H.ok(H.info),H.page([]),H.page([]),providers,response]);
-        assert.throws(()=>A.create(io,H.token).inventory(cfg,[H.existing()]),/403|Ambiguous/);
+        const snap=A.create(io,H.token).inventory(cfg,[H.existing()]);assert.equal(snap.partial,true);
+        assert.deepEqual(snap.confirmedMissing,[]);assert.match(snap.warnings[0].message,/403|Ambiguous/);
+        assert.ok(!H.C.plan([H.existing()],snap,{}).operations.some(o=>o.elementId===H.existing().id));
     }
 });
-test("one failing subscription invalidates the entire selected scope",()=>{
+test("one failing subscription preserves the successful selected scope",()=>{
     const io=H.io([H.ok(H.info),H.page([]),H.page([]),{status:403,body:{}}]);
-    assert.throws(()=>A.create(io,H.token).inventory({...cfg,subscriptionIds:[H.sub,H.otherSub]},[]),/403/);
+    const snap=A.create(io,H.token).inventory({...cfg,subscriptionIds:[H.sub,H.otherSub]},[]);
+    assert.deepEqual(snap.completedSubscriptions,[H.sub]);assert.equal(snap.partial,true);assert.equal(snap.resources.length,1);
 });
 test("expired access token is not sent",()=>{
     const io=H.io([]);
-    assert.throws(()=>A.create(io,{...H.token,expiresAt:0}).inventory(cfg,[]),/expired/);
+    const snap=A.create(io,{...H.token,expiresAt:0}).inventory(cfg,[]);
+    assert.equal(snap.partial,true);assert.match(snap.warnings[0].message,/expired/);
     assert.equal(io.calls.length,0);
 });
 test("provider discovery includes resource containers and deduplicates types",()=>{

@@ -1,0 +1,25 @@
+{
+  "status": "passed",
+  "archi": "5.10.0.202608252016",
+  "jArchi": "1.12.0.202604070605",
+  "checks": [
+    "Graal collectors continue after queue, subscription and Graph access denial",
+    "Incomplete scopes carry warnings and no deletion confirmations",
+    "Partial plan applies readable updates without false deletion or duplicate creation",
+    "Unreadable queue retains all properties, name, folder and GUID",
+    "Denied subscription element is untouched",
+    "Unreadable Entra Node retains existing deletion status and timestamps",
+    "Relationship touching unreadable queue retains name, folder, timestamps and GUID",
+    "Readable SQL database updates during partial collection",
+    "Graph results from successful pages update Nodes",
+    "Readable topic composition and SQL serving links update in place",
+    "Partial runs do not advance complete-sync model timestamps",
+    "Model records partial status, attempt time and warning count",
+    "Output warnings identify denied reads without raw server messages",
+    "Repeating partial sync preserves GUIDs and unreadable links",
+    "Later complete run restores complete status and advances success timestamps",
+    "Restored access resumes relationship cleanup and element reconciliation",
+    "Partial and complete syncs create no diagrams or default profiles",
+    "Partial-run metadata and elements survive save/reload"
+  ]
+}

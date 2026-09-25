@@ -134,7 +134,7 @@ Conditional Access may prohibit device-code sign-in. Use an authentication optio
 
 The model may contain Azure-AuthMethod, Azure-TenantId, Azure-SubscriptionIds and, for the device method, Azure-ClientId. These are identifiers/settings, not credentials. An optional Azure-UserId is informational and does not determine who signs in.
 
-Both methods keep the current access token in process memory while collecting inventory. The retained reference is cleared afterward; JVM memory cannot guarantee immediate secure erasure. Neither implementation refreshes the in-memory token midway through a long inventory. If it expires, the run stops before model application; rerun it to obtain a new token.
+Both methods keep the current access token in process memory while collecting inventory. The retained reference is cleared afterward; JVM memory cannot guarantee immediate secure erasure. Neither implementation refreshes the in-memory token midway through a long inventory. If it expires, affected reads are reported as warnings and available results can still be applied without deleting unverified objects. Rerun to obtain a new token and complete the skipped scopes.
 
 While synchronous sign-in/polling or CLI commands run, Archi may temporarily be unresponsive.
 
@@ -147,8 +147,8 @@ While synchronous sign-in/polling or CLI commands run, Archi may temporarily be 
 | CLI tenant/subscription mismatch | Sign in to the intended tenant and enter GUIDs from az account list. |
 | CLI cloud is not AzureCloud | This release supports public Azure only. Configure the CLI for AzureCloud and sign in there if that is your intended environment. |
 | Client ID requested unexpectedly | Select the Azure CLI option instead of Device sign-in. |
-| ARM HTTP 403 | Check the user's Azure RBAC access to every selected subscription. |
-| Microsoft Graph HTTP 403 / consent required | Check Graph Application.Read.All consent (device method), CLI Graph access and the user's tenant-wide app-read permissions. The combined run stops before model changes. Set AZURE_INCLUDE_ENTRA_APPLICATIONS=false to run ARM-only sync. |
+| ARM HTTP 403 | The affected read is skipped and reported; other selected subscriptions and child collections continue. Check the user's Azure RBAC access. |
+| Microsoft Graph HTTP 403 / consent required | Check Graph Application.Read.All consent (device method), CLI Graph access and the user's tenant-wide app-read permissions. The failure is logged and readable ARM inventory still synchronizes. Entra objects not verified remain untouched. Set AZURE_INCLUDE_ENTRA_APPLICATIONS=false only if you want to omit Graph entirely. |
 | Device-code flow is blocked | Ask your identity administrators which interactive flow is approved; CLI's broker/browser login is a separate option. |
 | Can I enter my password directly in the script? | No. Both implemented methods use Microsoft sign-in. Password-only ROPC cannot satisfy MFA and still requires an application client ID. |
 | Service principal, certificate or managed identity? | These are not selectable authentication methods in this release. They would require a separate workload-authentication design. |

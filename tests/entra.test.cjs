@@ -19,23 +19,29 @@ test('Graph rejects cross-host, cross-collection, traversal and changed queries 
   const io=H.io([page([raw],next)]);assert.throws(()=>E.create(io,token).inventory(H.tenant,[]),/pagination|query|selected fields/);assert.equal(io.calls.length,1);
  }
 });
-test('Graph rejects duplicate objects, repeated pages, malformed pages and unrecognized derived types',()=>{
- for(const responses of [[page([raw,raw])],[page([raw],base+select+'&$top=999')],[H.ok({items:[]})],[H.ok({value:[],'@odata.nextLink':42})],[page([{...raw,'@odata.type':'#unexpected'}])]])assert.throws(()=>collect(responses));
+test('Graph rejects duplicate objects, repeated pages and unrecognized derived types',()=>{
+ for(const responses of [[page([raw,raw])],[page([raw],base+select+'&$top=999')],[H.ok({value:[],'@odata.nextLink':42})],[page([{...raw,'@odata.type':'#unexpected'}])]])assert.throws(()=>collect(responses));
  assert.deepEqual(collect([page([{...raw,'@odata.type':'#microsoft.graph.agentIdentityBlueprint'}])]).snapshot.applications,[]);
 });
 test('Graph requires the tenant and Graph audience before issuing any request',()=>{
  for(const bad of [{...token,tenantId:H.clientId},{...token,resource:'arm'}]){const io=H.io([]);assert.throws(()=>E.create(io,bad).inventory(H.tenant,[]),/tenant\/audience/);assert.equal(io.calls.length,0);}
 });
-test('Graph retries throttling and transient errors, but permission failure stops safely',()=>{
+test('Graph retries throttling and transient errors, but permission failure reports a protected partial inventory',()=>{
  const result=collect([{status:429,headers:{'retry-after':'2'}},page([raw])]);assert.deepEqual(result.io.sleeps,[2000]);
- for(const status of [401,403,404])assert.throws(()=>collect([{status,body:{error:{code:'Authorization_RequestDenied',message:'SECRET'}}}]),e=>e.message.includes('HTTP '+status)&&!e.message.includes('SECRET'));
- const io=H.io([{status:503,headers:{'retry-after':'120'}}]);assert.throws(()=>E.create(io,{...token,expiresAt:io.now()+20000}).inventory(H.tenant,[]),/expired/);assert.equal(io.calls.length,1);
+ for(const status of [401,403,404]){
+  const s=collect([{status,body:{error:{code:'Authorization_RequestDenied',message:'SECRET'}}}]).snapshot;
+  assert.equal(s.completed,false);assert.equal(s.partial,true);assert.match(s.warnings[0].message,new RegExp('HTTP '+status));assert.ok(!JSON.stringify(s).includes('SECRET'));
+ }
+ const io=H.io([{status:503,headers:{'retry-after':'120'}}]);const s=E.create(io,{...token,expiresAt:io.now()+20000}).inventory(H.tenant,[]);assert.match(s.warnings[0].message,/expired/);assert.equal(io.calls.length,1);
 });
 test('Missing app list entries are individually checked, recovered or confirmed absent',()=>{
  let r=collect([page([]),H.ok(raw)],[old()]);assert.deepEqual(r.snapshot.applications,[raw]);assert.deepEqual(r.snapshot.confirmedMissing,[]);
  assert.equal(r.io.calls[1][1],base+'/'+raw.id+select);
  r=collect([page([]),{status:404,body:{error:{code:'Request_ResourceNotFound'}}}],[old()]);assert.deepEqual(r.snapshot.confirmedMissing,[E.identity(H.tenant,raw.id)]);
- for(const response of [{status:404,body:{}},{status:403,body:{}},H.ok(raw2)])assert.throws(()=>collect([page([]),response],[old()]));
+ for(const response of [{status:404,body:{}},{status:403,body:{}}]){
+  const s=collect([page([]),response],[old()]).snapshot;assert.equal(s.partial,true);assert.deepEqual(E.plan([old()],s,{}).operations,[]);
+ }
+ assert.throws(()=>collect([page([]),H.ok(raw2)],[old()]),/another Object ID/);
 });
 test('Entra Nodes store both IDs and empty subscription/group fields with repository timestamps',()=>{
  const p=E.plan([],snap(),{}),op=p.operations[0];assert.equal(op.base,'node');
@@ -66,3 +72,5 @@ test('Entra rejects incomplete snapshots, unconfirmed deletion, duplicates, unma
  assert.throws(()=>E.plan([{...old(),type:'application-component'}],snap(),{}),/Node/);
  assert.throws(()=>E.plan([],snap(),C.mappings([[C.ENTRA_APPLICATION_TYPE,'technology-function']])),/Node/);
 });
+
+test('Malformed Graph pages report incomplete inventory instead of blocking ARM work',()=>{const s=collect([H.ok({items:[]})]).snapshot;assert.equal(s.partial,true);assert.match(s.warnings[0].message,/Malformed/);});

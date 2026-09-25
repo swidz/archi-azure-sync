@@ -27,7 +27,9 @@ test('duplicate children on the same endpoint pages abort even when present in g
 });
 test('failed child collection never becomes an empty successful subscription',()=>{
  for(const response of [{status:403,body:{error:{code:'AuthorizationFailed'}}},notFound('ResourceNotFound'),H.ok({})]){
-  const io=H.io([...initial([app]),response]);assert.throws(()=>A.create(io,H.token).inventory(cfg,[old(fn)]),/403|404|Malformed/);
+  const io=H.io([...initial([app]),response,notFound('ResourceNotFound')]);
+  const s=A.create(io,H.token).inventory(cfg,[old(fn)]);assert.equal(s.partial,true);assert.deepEqual(s.confirmedMissing,[]);
+  assert.ok(!C.plan([old(fn)],s,{}).operations.some(o=>o.elementId===old(fn).id));
  }
 });
 test('child pagination cannot move to a different collection under the same subscription',()=>{
@@ -47,9 +49,11 @@ test('missing kind or SKU is resolved with parent metadata before child discover
  const io=H.io([...initial([{...app,kind:undefined},{...sb,sku:undefined}]),H.ok(app),H.page([fn]),H.ok({...sb,sku:{tier:'Basic'}}),H.page([queue])]);
  const s=A.create(io,H.token).inventory(cfg,[]);assert.ok(s.resources.some(r=>r.id===fn.id));assert.ok(s.resources.some(r=>r.id===queue.id));
 });
-test('unclassifiable or mismatched parent metadata aborts',()=>{
+test('unclassifiable metadata skips expansion but identity mismatch still aborts',()=>{
  for(const raw of [{...app,kind:undefined},{...app,id:app.id+'other'}]){
-  const io=H.io([...initial([{...app,kind:undefined}]),H.ok(raw)]);assert.throws(()=>A.create(io,H.token).inventory(cfg,[]),/kind is missing|different resource/);
+  const io=H.io([...initial([{...app,kind:undefined}]),H.ok(raw)]);
+  if(raw.id!==app.id)assert.throws(()=>A.create(io,H.token).inventory(cfg,[]),/different resource/);
+  else assert.match(A.create(io,H.token).inventory(cfg,[]).warnings[0].message,/kind is missing/);
  }
 });
 test('a parent recovered by individual GET is expanded before checking child absence',()=>{
@@ -66,12 +70,14 @@ test('known child not-found codes require completed parent collection coverage',
  for(const [parent,item,code,responses] of [[app,fn,'NotFound',[H.page([])]],[sb,queue,'MessagingEntityNotFound',[H.page([]),H.page([])]]]){
   const io=H.io([...initial([parent]),...responses,notFound(code)]);const s=A.create(io,H.token).inventory(cfg,[old(item)]);
   assert.deepEqual(s.confirmedMissing,[C.identity(H.tenant,item.id)]);
-  const absent=H.io([...initial([]),notFound(code)]);assert.throws(()=>A.create(absent,H.token).inventory(cfg,[old(item)]),/Ambiguous/);
+  const absent=H.io([...initial([]),notFound(code)]),partial=A.create(absent,H.token).inventory(cfg,[old(item)]);
+  assert.equal(partial.partial,true);assert.deepEqual(partial.confirmedMissing,[]);assert.match(partial.warnings[0].message,/Ambiguous/);
  }
 });
 test('ambiguous child 404 or access loss does not permit soft deletion',()=>{
  for(const r of [notFound('NoRegisteredProviderFound'),{status:403,body:{}},notFound('UnknownError')]){
-  const io=H.io([...initial([app]),H.page([]),r]);assert.throws(()=>A.create(io,H.token).inventory(cfg,[old(fn)]),/Ambiguous|403/);
+  const io=H.io([...initial([app]),H.page([]),r]),s=A.create(io,H.token).inventory(cfg,[old(fn)]);
+  assert.equal(s.partial,true);assert.deepEqual(s.confirmedMissing,[]);assert.match(s.warnings[0].message,/Ambiguous|403/);
  }
 });
 test('service relations add namespace composition, Function assignment and SQL server serving',()=>{

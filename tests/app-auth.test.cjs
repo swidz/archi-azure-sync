@@ -1,31 +1,31 @@
 const test=require("node:test"), assert=require("node:assert/strict"), fs=require("node:fs"), vm=require("node:vm");
 const H=require("./helpers.cjs");
-function app(method="azure-cli", overrides={}, options, mode="sync", confirm=true, graphError=false) {
-    const props={"Azure-ClientId":H.clientId,...overrides}, prompts=[], calls=[], alerts=[],tokens=[];
+function app(method="azure-cli", overrides={}, options, mode="sync", confirm=true, graphError=false, scenario={}) {
+    const props={"Azure-ClientId":H.clientId,...overrides}, prompts=[], calls=[], alerts=[],tokens=[],logs=[];
     function bearer(resource){const t={accessToken:"fake",expiresAt:9999999999999,resource:resource||"arm",tenantId:H.tenant};tokens.push(t);return t;}
     const context={
-        AzureCore:H.C, console:{log(){}},
+        AzureCore:H.C, console:{log:s=>logs.push(s)},
         model:{isSet:()=>true,prop:function(k,v){if(arguments.length===2)props[k]=v;return props[k];}},
         window:{
             promptSelection:(label,choices)=>{calls.push(["choices",...choices]);return method===null?null:
                 choices.find(x=>x.startsWith(method==="azure-cli"?"Azure CLI":"Device"));},
-            prompt:(label)=>{prompts.push(label);return /tenant/i.test(label)?H.tenant:/Subscription IDs/.test(label)?H.sub:H.clientId;},
+            prompt:(label)=>{prompts.push(label);return /tenant/i.test(label)?H.tenant:/Subscription IDs/.test(label)?(scenario.subscriptions||H.sub):H.clientId;},
             confirm:()=>confirm,alert:s=>alerts.push(s),promptSaveFile:()=>"/snapshot.json"
         },
         AzureJava:{io:{now:()=>Date.parse(H.snapshot().collectedAt)},write:(file,text)=>calls.push(["exported",JSON.parse(text)])},
-        AzureEntra:{...require("../lib/entra-applications.js"),create:()=>({inventory:()=>{calls.push(["graph-inventory"]);if(graphError)throw Error("Graph permission denied");return {tenantId:H.tenant,completed:true,collectedAt:H.snapshot().collectedAt,applications:[{id:H.clientId,appId:H.clientId,displayName:"Entra app"}],confirmedMissing:[]};}})},
+        AzureEntra:{...require("../lib/entra-applications.js"),create:(io,token,progress)=>({inventory:()=>{calls.push(["graph-inventory"]);if(graphError)return require("../lib/entra-applications.js").create(H.io([{status:403,body:{error:{code:"Authorization_RequestDenied"}}}]),token,progress).inventory(H.tenant,[]);return {tenantId:H.tenant,completed:true,collectedAt:H.snapshot().collectedAt,applications:[{id:H.clientId,appId:H.clientId,displayName:"Entra app"}],confirmedMissing:[]};}})},
         AzureCliJava:{createIo:()=>{calls.push(["cli-process"]);return {};}},
-        AzureCli:{signIn:(io,cfg,resource)=>{calls.push(["cli",cfg,resource]);return bearer(resource);}},
+        AzureCli:{signIn:(io,cfg,resource)=>{calls.push(["cli",cfg,resource]);if(scenario.authFailure)scenario.authFailure(cfg,resource);return bearer(resource);}},
         AzureClient:{
             deviceLogin:(io,cfg,display,resource)=>{calls.push(["device",cfg,resource]);return bearer(resource);},
-            create:()=>({inventory:()=>H.snapshot()})
+            create:()=>({inventory:()=>scenario.snapshot || H.snapshot()})
         },
         AzureArchi:{prepareAppearance:()=>({count:2}),applyAppearance:(m,a,o)=>calls.push(["appearance",o]),readElements:()=>[],prepareImages:()=>{throw Error("Sync must not prepare images");},prepareProfiles:(m,map,root,remove,includeImages)=>{calls.push(["profiles-planned",includeImages]);return {};},applyProfiles:()=>calls.push(["profiles-applied"]),
             apply:(m,p,o)=>calls.push(["applied",o,p])}
     };
     vm.runInNewContext(fs.readFileSync(require.resolve("../lib/app.js"),"utf8"),context);
     context.AzureApp.run(mode,"/repo",[],options);
-    return {props,prompts,calls,alerts,tokens};
+    return {props,prompts,calls,alerts,tokens,logs};
 }
 test("selecting CLI skips client ID prompt and preserves device client configuration",()=>{
     const r=app();assert.equal(r.alerts.length,1);assert.match(r.alerts[0],/complete/);
@@ -98,10 +98,11 @@ test('Entra sync signs in separately to Graph using either method and combines t
   assert.ok(r.tokens.length===2 && r.tokens.every(t=>t.accessToken===null));
  }
 });
-test('Graph failure stops ARM model changes and does not advance configuration',()=>{
+test('Graph permission failure applies ARM results and reports warnings without advancing Graph success',()=>{
  const r=app('azure-cli',{}, {includeEntraApplications:true,useSpecializations:true},'sync',true,true);
- assert.ok(!r.calls.some(c=>c[0]==='applied'||c[0]==='profiles-applied'));assert.equal(r.props['Azure-AuthMethod'],undefined);
- assert.match(r.alerts[0],/Graph permission denied/);assert.ok(r.tokens.every(t=>t.accessToken===null));
+ const plan=r.calls.find(c=>c[0]==='applied')[2];assert.equal(plan.operations.length,1);assert.equal(plan.partial,true);assert.equal(plan.entraTenantId,undefined);
+ assert.ok(r.calls.some(c=>c[0]==='profiles-applied'));assert.equal(r.props['Azure-AuthMethod'],'azure-cli');
+ assert.match(r.alerts[0],/completed with warnings/);assert.ok(r.logs.some(s=>s.includes('[WARNING]')&&s.includes('403')));assert.ok(r.tokens.every(t=>t.accessToken===null));
 });
 test('Disabling Entra makes no Graph call; cancelling combined preview mutates no model',()=>{
  const excluded=app('azure-cli',{}, {includeEntraApplications:false});assert.ok(!excluded.calls.some(c=>c[0]==='graph-inventory'));
@@ -109,6 +110,33 @@ test('Disabling Entra makes no Graph call; cancelling combined preview mutates n
 });
 test('Export includes separate tenant-scoped app inventory without model writes or tokens',()=>{
  const r=app('azure-cli',{}, {includeEntraApplications:true},'export');
- const snapshot=r.calls.find(c=>c[0]==='exported')[1];assert.equal(snapshot.schemaVersion,2);assert.equal(snapshot.entraApplications.applications.length,1);
+ const snapshot=r.calls.find(c=>c[0]==='exported')[1];assert.equal(snapshot.schemaVersion,3);assert.equal(snapshot.entraApplications.applications.length,1);
  assert.ok(!JSON.stringify(snapshot).includes('fake'));assert.ok(!r.calls.some(c=>c[0]==='applied'));assert.ok(r.tokens.every(t=>t.accessToken===null));
+});
+
+test('Graph token acquisition or consent failure is nonfatal and still clears ARM credentials',()=>{
+ const r=app('azure-cli',{}, {includeEntraApplications:true},'sync',true,false,{authFailure:(cfg,resource)=>{if(resource==='graph')throw H.C.readError('Consent is required');}});
+ const p=r.calls.find(c=>c[0]==='applied')[2];assert.equal(p.partial,true);assert.equal(p.operations.length,1);assert.ok(r.logs.some(l=>l.includes('Consent is required')));assert.ok(r.tokens.every(t=>t.accessToken===null));
+});
+test('CLI auth tries later selected subscriptions when the first is unavailable',()=>{
+ const r=app('azure-cli',{},undefined,'sync',true,false,{subscriptions:H.sub+','+H.otherSub,authFailure:cfg=>{if(cfg.subscriptionIds[0]===H.sub)throw H.C.readError('Unavailable subscription');}});
+ assert.ok(r.calls.some(c=>c[0]==='cli'&&c[1].subscriptionIds[0]===H.otherSub));assert.ok(r.calls.some(c=>c[0]==='applied'));
+});
+test('ARM sign-in failure still allows the independent Entra inventory to apply',()=>{
+ const r=app('azure-cli',{}, {includeEntraApplications:true},'sync',true,false,{authFailure:(cfg,resource)=>{if(resource!=='graph')throw H.C.readError('ARM access denied');}});
+ const p=r.calls.find(c=>c[0]==='applied')[2];assert.equal(p.operations.length,1);assert.equal(p.operations[0].properties['Azure-ObjectType'],H.C.ENTRA_APPLICATION_TYPE);assert.equal(p.partial,true);
+});
+test('No readable data does not apply profiles, model metadata or configuration',()=>{
+ const r=app('azure-cli',{}, {includeEntraApplications:true,useSpecializations:true},'sync',true,false,{authFailure:()=>{throw H.C.readError('No access');}});
+ assert.ok(!r.calls.some(c=>c[0]==='applied'||c[0]==='profiles-applied'));assert.equal(r.props['Azure-AuthMethod'],undefined);assert.match(r.alerts[0],/No readable objects/);
+});
+test('Cancellation and integrity errors remain fatal and are printed to output',()=>{
+ for(const message of ['Sign-in cancelled.','Tenant mismatch']){
+  const r=app('azure-cli',{}, {includeEntraApplications:true},'sync',true,false,{authFailure:()=>{throw Error(message);}});
+  assert.ok(!r.calls.some(c=>c[0]==='applied'));assert.ok(r.logs.some(l=>l.includes('[ERROR]')&&l.includes(message)));
+ }
+});
+test('Partial export records warnings without model changes',()=>{
+ const r=app('azure-cli',{}, {includeEntraApplications:true},'export',true,true),s=r.calls.find(c=>c[0]==='exported')[1];
+ assert.equal(s.entraApplications.partial,true);assert.equal(s.entraApplications.completed,false);assert.equal(s.entraApplications.warnings.length,1);assert.ok(!r.calls.some(c=>c[0]==='applied'));
 });

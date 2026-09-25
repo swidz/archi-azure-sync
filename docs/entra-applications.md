@@ -10,7 +10,7 @@ Version 0.10 adds registered applications from the selected Entra tenant as **No
 4. Run Sync Azure.ajs with your usual tenant and subscription IDs, review the combined preview and apply. App collection covers the whole selected tenant once, regardless of which subscriptions you selected for ARM resources.
 5. Inspect the new Nodes, save, and run again to verify that they update in place.
 
-To run ARM-only sync, set AZURE_INCLUDE_ENTRA_APPLICATIONS = false. This leaves existing Entra Nodes, folders and sync timestamps unchanged. Graph failures stop the combined run before any model changes; they never become an empty app list. Discovery of ARM resource types remains independent of this flag.
+To run ARM-only sync, set AZURE_INCLUDE_ENTRA_APPLICATIONS = false. This leaves existing Entra Nodes, folders and sync timestamps unchanged. Since version 0.11, Graph permission/consent and other acquisition failures are logged as warnings and ARM synchronization continues. Successfully read app records can still update their Nodes; unreadable apps remain untouched, and an incomplete Entra collection cannot delete apps. Discovery of ARM resource types remains independent of this flag.
 
 ## Connection options
 
@@ -54,10 +54,10 @@ Sync creates no diagrams and applies no icons. The optional Apply Azure Appearan
 
 The collector calls GET /v1.0/applications with $select=id,appId,displayName and follows every @odata.nextLink. It requests no credentials, certificates, redirect URLs, owners or permission-grant contents. Only those three selected identity fields enter the export and model. The collector recognizes and skips the separate agentIdentityBlueprint subtype returned by the current list API. [List API](https://learn.microsoft.com/en-us/graph/api/application-list?view=graph-rest-1.0).
 
-For previously synced apps absent from the complete list, it calls GET /v1.0/applications/{id} with the same projection. A successful response restores the missing list entry. Only a recognized resource-not-found 404 permits soft deletion; 403, ambiguous 404, malformed responses and paging failures abort before application. [Get API](https://learn.microsoft.com/en-us/graph/api/application-get?view=graph-rest-1.0).
+For previously synced apps absent from the complete list, it calls GET /v1.0/applications/{id} with the same projection. A successful response restores the missing list entry. Only a recognized resource-not-found 404 after a complete collection and successful absence checks permits soft deletion. Permission failures, ambiguous 404s, malformed list pages and failed page requests are reported in the Scripts output window and disable deletion for the Entra collection; available records can still synchronize. Invalid identities, duplicate objects and unsafe pagination remain fatal. [Get API](https://learn.microsoft.com/en-us/graph/api/application-get?view=graph-rest-1.0).
 
 Use an account with full tenant-wide app-read access, not access limited to apps it owns. Individual checks reduce false deletion from incomplete listings, but cannot distinguish every authorization-masked not-found response from deletion. Review deletion counts and test with a disposable app before relying on a live deletion cycle.
 
-Export Azure Inventory includes a separate entraApplications section and schemaVersion 2 when enabled; resources remains the ARM list. The ordinary Sync script fetches fresh data instead of importing an export file.
+Export Azure Inventory uses schemaVersion 3 with a separate entraApplications section when enabled; resources remains the ARM list. Each collector records completion and warning details, and status indicates the overall complete/partial result. See [partial synchronization](partial-sync.md). The ordinary Sync script fetches fresh data instead of importing an export file.
 
 Offline collector/authentication tests and a disposable Archi model test passed. Live Graph permissions, tenant coverage and a real app delete/restore cycle still require validation with your account.

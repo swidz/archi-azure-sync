@@ -236,7 +236,9 @@ No diagrams or connections are generated. The utility always assigns custom imag
 
 Existing ARM elements are matched by tenant and ARM resource ID. Entra applications use tenant and Graph Object ID. A repeat run does not create duplicates. CreatedDate/CreatedTime remain unchanged; LastSyncDate/LastSyncTime advance on successful application. Confirmed missing resources remain in the model with IsDeleted=yes and deletion timestamps. If the same ARM ID returns, the original element is restored and deletion timestamps cleared.
 
-Authentication, incomplete inventory, or uncertain deletion checks stop before model application. An unexpected error during application can leave partial in-memory changes; use **Edit → Undo** before retrying.
+Read/permission failures now appear as **[WARNING]** lines in the Scripts output window. The run continues and offers the objects it could read. A **completed with warnings** result is partial: unreadable elements and relationships stay unchanged, and no deletion occurs in incomplete scopes. Review the warnings, fix access if needed, and run Sync again. No additional setting is required. See [error handling and partial synchronization](partial-sync.md).
+
+Cancellation, invalid tenant/identity data, unsafe pagination and model conflicts still stop. An unexpected error during model application can leave partial in-memory changes; use **Edit → Undo** before retrying.
 
 ## 10. Optional utilities
 
@@ -260,6 +262,8 @@ Version 0.6 adds child collectors and service relationships. Preserve any local 
 Version 0.5 makes custom icons entirely optional. If you previously customized image/text positions in Sync Azure.ajs, move those values into Apply Azure Appearance.ajs. Existing custom images are retained, not removed or reformatted by Sync.
 
 Run Sync Azure on a copy of the existing model first. The default next run reorganizes scoped elements and detaches script-owned specialization assignments without adding custom images. It preserves IDs, documentation and diagram layout, reuses existing containment relationships and creates any missing ones. Save/reopen and run again to verify no duplicate concepts or folders before using the updated script for your regular model.
+
+Version 0.11 adds automatic partial synchronization. Replace all library files together; run Sync Azure.ajs normally and inspect the Scripts output for warnings. It adds no plugin or authentication requirement.
 
 Version 0.10 enables Entra app registration collection by default. Update all library files and configure Graph access, or set AZURE_INCLUDE_ENTRA_APPLICATIONS=false to retain ARM-only behavior. Preserve the Microsoft.Graph/applications Node mapping when merging your custom catalog.
 

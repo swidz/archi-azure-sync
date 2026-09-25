@@ -50,7 +50,7 @@ Inventory uses subscription Get, resource-group List and generic Resources List,
 
 Resource Graph was considered, but indexed/type-specific coverage and permission-dependent results complicate absence handling. The implementation instead uses direct ARM lists plus individual checks. Neither a type catalog nor generic ARM inventory replaces every service's child/data-plane API.
 
-All child collectors run before application, finish every page and fail the scope on errors; never turn a failed collector into an empty list.
+Collectors run before model application and retain successful pages. Tagged acquisition errors are caught at subscription/list/child/existence-check boundaries; unknown exceptions and integrity violations propagate. Schema version 3 includes warnings, partial state and completed subscriptions. Any failed read disables all deletion within that subscription; partial Entra collection disables tenant app deletion. Fully read subscriptions still reconcile absent resources even if another subscription fails. See [partial synchronization](partial-sync.md) for model status and relationship handling.
 
 ## torchlight-azure
 
