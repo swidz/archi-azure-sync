@@ -35,17 +35,17 @@ The optional offline Apply Azure Appearance utility owns diagram formatting. It 
 
 ## Explicit containment relationships
 
-Core planning builds tenant-qualified, case-insensitive parent/child identities from ARM IDs. Subscription Nodes compose resource group Nodes; group Nodes compose their member resources. Subscription-level resources do not acquire a synthetic Other parent. Missing parent Nodes are counted in the preview and skipped.
+Core planning builds tenant-qualified, case-insensitive parent/child identities from ARM IDs. Subscription Nodes compose resource group Nodes; group Nodes compose their member Node resources. Namespace Nodes additionally compose queues/topics, Function App Nodes assign Technology Functions, and SQL server Nodes serve database Nodes. Node-to-Technology-Function composition is rejected by Archi; Technology Functions therefore have no direct resource-group composition. Subscription-level resources do not acquire a synthetic Other parent. Missing parent Nodes are counted in the preview and skipped.
 
-After all concept operations, the adapter indexes existing composition relationships by source/target concept IDs and adds only missing directed links. Existing manual compositions remain unowned and unchanged. Owned links carry endpoint IDs and lifecycle metadata; confirmed endpoint deletion marks the link deleted, and restoration clears its deletion timestamp without replacing its identity. Updates are restricted to owned endpoints in the selected tenant and subscriptions. Links remain model concepts: production scripts never create views or diagram connections.
+After all concept operations, the adapter indexes existing composition, assignment and serving relationships by type and source/target concept IDs and adds only missing directed links. Existing manual compositions remain unowned and unchanged. Owned links carry endpoint IDs and lifecycle metadata; confirmed endpoint deletion marks the link deleted, and restoration clears its deletion timestamp without replacing its identity. Updates are restricted to owned endpoints in the selected tenant and subscriptions. Links remain model concepts: production scripts never create views or diagram connections.
 
 ## Coverage
 
-Inventory uses subscription Get, resource-group List and generic Resources List. Provider metadata supplies supported API versions for individually checking missing resources and exporting available types.
+Inventory uses subscription Get, resource-group List and generic Resources List, then explicit [Service Bus, Functions and SQL child collectors](child-resources.md). Generic and child endpoint records merge only when the same child ARM identity appears in distinct sources. Duplicates within a single endpoint remain errors. Missing parents already in the model are verified before expansion, so recovered parents also have their children collected. Provider metadata supplies supported API versions for individually checking missing resources and exporting available types.
 
 Resource Graph was considered, but indexed/type-specific coverage and permission-dependent results complicate absence handling. The implementation instead uses direct ARM lists plus individual checks. Neither a type catalog nor generic ARM inventory replaces every service's child/data-plane API.
 
-Future extra collectors must run before application, finish every page and fail the scope on errors; never turn a failed collector into an empty list.
+All child collectors run before application, finish every page and fail the scope on errors; never turn a failed collector into an empty list.
 
 ## torchlight-azure
 
@@ -54,6 +54,8 @@ Inspected [archilight/torchlight-azure](https://github.com/archilight/torchlight
 The older overlay is historical context. It is not a dependency and no old plugin code was copied. Native jArchi APIs now cover the required behavior: createImage, createSpecialization, element.specialization and profile.delete. The latter clears references while retaining concepts.
 
 Real-runtime tests verify managed folders, relocation, custom images, Top Center placement, optional profiles, save/reload and relationship preservation. Model traversal normalizes diagram instances to underlying concepts, avoiding duplicate inventory entries when elements appear in views. objectRefs() identifies visual occurrences; .concept alone cannot distinguish a concept proxy from a diagram object.
+
+The child API versions are pinned to the documented control-plane contracts. Individual child absence checks use those versions without depending on provider type-discovery coverage. A child collection can paginate only within its exact collection path. Child payloads are projected onto resource identity fields, excluding function files, config, invocation URLs and other payload content.
 
 ## Sources
 

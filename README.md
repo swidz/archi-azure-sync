@@ -4,11 +4,11 @@ Synchronize Azure Resource Manager inventory into an existing, selected Archi mo
 
 **[User manual: installation from GitHub, first run, and subsequent runs](docs/user-manual.md)** · [Azure connection options](docs/authentication.md)
 
-Resources default to ordinary Technology-layer **Nodes**, organized under **Azure → Subscription → Resource group (or Other) → Object type**. Existing managed elements are moved into this hierarchy on the next applied sync. Their IDs, relationships and diagram layout are preserved.
+Resources default to ordinary Technology-layer **Nodes**; individual Azure Functions use **Technology Function**. Elements are organized under **Azure → Subscription → Resource group (or Other) → Object type**. Existing managed elements are moved into this hierarchy on the next applied sync. Their IDs, relationships and diagram layout are preserved.
 
 **Icons are optional. Sync Azure.ajs does not add custom images or change diagram image/text placement.** Run **scripts/utils/Apply Azure Appearance.ajs** only if you want Azure icons on Nodes you have manually placed in views. It runs locally, without Azure authentication. Bundled images have a maximum dimension of **48 pixels**; the utility defaults to images at **Top Center** and names at **Bottom Center**. Specializations remain off by default.
 
-Sync creates **composition relationships named "composed of"** from each subscription to its resource groups and from each resource group to its resources. Repeated runs reuse existing links. **No script generates diagrams or diagram connections.**
+Sync creates **composition relationships named "composed of"** from each subscription to its resource groups and from each resource group to its Node resources. It also collects Service Bus queues/topics, individual Azure Functions and SQL databases with the [service relationships described here](docs/child-resources.md). Repeated runs reuse existing links. **No script generates diagrams or diagram connections.**
 
 ## Quick start
 
@@ -51,7 +51,7 @@ Positions accept top/middle/bottom combined with left/center/right, for example 
 | scripts/utils/Discover Azure Resource Types.ajs | Export provider-advertised types for manual catalog review; does not merge them automatically. |
 | scripts/utils/Manage Azure Specializations.ajs | Optional offline bulk profile maintenance, explicitly guarded by its own false-by-default flag. Not needed for synchronization. |
 
-config/specializations.js contains **3,406 editable type/base/icon mappings** even when profile creation is disabled. All shipped base types are Node; unmapped types use Node, with the generic Azure icon only when the appearance utility is run. The V24 archive contributes **714 PNG icons**, reused across resource types. Commenting out a mapping does not filter inventory. Existing custom images remain until you change or remove them in Archi; skipping the appearance utility does not remove previously applied images. See [catalog and icons](docs/catalog.md).
+config/specializations.js contains **3,406 editable type/base/icon mappings** even when profile creation is disabled. All shipped base types are Node except Microsoft.Web/sites/functions, which uses technology-function; unmapped types use Node, with the generic Azure icon only when the appearance utility is run. The V24 archive contributes **714 PNG icons**, reused across resource types. Commenting out a mapping does not filter inventory. Existing custom images remain until you change or remove them in Archi; skipping the appearance utility does not remove previously applied images. See [catalog and icons](docs/catalog.md).
 
 ## Element properties
 
@@ -65,6 +65,7 @@ config/specializations.js contains **3,406 editable type/base/icon mappings** ev
 | Azure-ObjectName | Name returned by Azure |
 | Azure-ResourceGroupId | Full resource-group ARM ID, empty for subscription-level objects |
 | Azure-ResourceGroupName | Group name, empty for subscription-level objects |
+| Azure-ParentObjectId | Namespace, Function App or SQL server ARM ID for the supported child types; otherwise empty |
 | Azure-URL | Tenant-specific Azure portal resource link |
 | CreatedDate, CreatedTime | First creation in this Archi repository, not Azure provisioning time |
 | DeletedDate, DeletedTime | First confirmed absence; empty while active; preserved on repeated absent runs |
@@ -80,11 +81,11 @@ Resource groups and subscriptions are also Nodes. A group's resource-group prope
 
 ## Composition relationships
 
-The whole is the source and the part is the target: **subscription → resource group → resource**. Nested resources returned by inventory link directly to their resource group. Links are ArchiMate composition relationships in the model, named **composed of**. Add existing relationships to a view manually when needed.
+The whole is the source and the part is the target: **subscription → resource group → resource**. Node resources returned by inventory link directly to their resource group. Technology Functions link through their Function App using assignment, because Archi rejects Node-to-Technology-Function composition. Links are ArchiMate composition relationships in the model, named **composed of**. Add existing relationships to a view manually when needed.
 
-Any existing composition with the same source and target is reused. Manually authored relationships keep their names and properties. Script-owned links carry endpoint ARM IDs, tenant/subscription IDs, ownership and creation/deletion/last-sync timestamps. They are retained and marked deleted when either endpoint is soft-deleted, and restored when both endpoints return. Unselected subscriptions remain untouched.
+Existing composition, assignment and serving relationships are matched by type, source and target and reused. Manually authored relationships keep their names and properties. Script-owned links carry endpoint ARM IDs, tenant/subscription IDs, ownership and creation/deletion/last-sync timestamps. They are retained and marked deleted when either endpoint is soft-deleted, and restored when both endpoints return. Unselected subscriptions remain untouched.
 
-**Other** is only a folder. Resources without a resource group receive no invented group or group relationship. A missing parent Node is reported in the preview and its link is skipped. No application dependencies or network topology are inferred.
+**Other** is only a folder. Resources without a resource group receive no invented group or group relationship. A missing parent Node is reported in the preview and its link is skipped. The explicit service links are namespace → queue/topic composition ("consists of"), Function App → Technology Function assignment ("performs"), and SQL server → database serving ("serves"). No application call dependencies or network topology are inferred.
 
 ## Model configuration and Git
 
@@ -117,9 +118,9 @@ To **explicitly adopt** an existing manually maintained Azure element, set its e
 
 ## Inventory coverage
 
-This release inventories Azure public cloud's **generic ARM Resources List**, selected resource groups and subscription containers. It follows every page and imports any returned resource type, even if absent from the catalog.
+This release inventories Azure public cloud's **generic ARM Resources List**, selected resource groups and subscription containers, plus dedicated lists for **Service Bus queues/topics, Function App functions, and Azure SQL logical-server databases**. It follows every page and imports any returned resource type, even if absent from the catalog.
 
-A type catalog does not imply that Azure's generic listing returns every object of that type. Some nested resources, such as subnets and database children, require service-specific list APIs. Entra users/groups, blobs, Kubernetes workloads, SaaS application objects, tenant/management-group scope and sovereign clouds are outside this release. Only subscription/resource-group containment relationships are created; diagrams are never generated. Treat the export as an ARM infrastructure inventory, not a universal Azure CMDB.
+A type catalog does not imply that Azure's generic listing returns every object of that type. Other nested resources, such as subnets, still require additional collectors. Function deployment slots, Service Bus topic subscriptions and SQL managed-instance databases are not expanded by these new collectors. Entra users/groups, blobs, Kubernetes workloads, SaaS application objects, tenant/management-group scope and sovereign clouds are outside this release. Only subscription/resource-group and the documented service relationships are created; diagrams are never generated. Treat the export as an ARM infrastructure inventory, not a universal Azure CMDB.
 
 Individual missing-resource checks reduce false deletions from incomplete visibility. A provider's authorization-masked 404 still cannot be distinguished with certainty from deletion. Use a stable account with subscription-wide Reader permissions and review deletion counts.
 

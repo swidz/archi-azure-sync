@@ -4,21 +4,24 @@ Date: 2026-09-25.
 
 ## Executed locally
 
-- 69 offline tests passed on Node.js 24.19.0 / Windows.
+- 83 offline tests passed on Node.js 24.19.0 / Windows.
 - JavaScript/entry-point syntax and all 3,406 mapping/icon references passed validation.
 - Actual **Archi 5.10.0.202608252016 + jArchi 1.12.0.202604070605**, using the installed GraalVM engine, passed the model smoke test in an isolated configuration/data directory.
 - Updated model test: 44 assertions cover folders/profiles/migration, 48-pixel icons, configurable image/name positions in the optional utility, no generated diagrams, composition creation/reuse, manual relationship preservation, soft-delete/restoration, scope and save/reload. New checks confirm Sync works with icon loading disabled, leaves plain diagram Nodes without custom images, preserves existing images and placement, stores no appearance settings, and creates optional profiles without importing or clearing profile images.
+- Child model test: 16 additional assertions in tests/children-smoke.ajs passed with synthetic ARM responses inside GraalVM. They cover collector-to-model integration, Service Bus composition, Technology Function assignment, SQL serving, duplicate prevention, deletion/restoration, unselected scope, manual serving preservation and save/reload. The model smoke test above also passed again (44 assertions).
 - Actual jArchi Java HTTPS reached public Entra discovery metadata (HTTP 200) and ARM without credentials (expected HTTP 401).
 - Icon preparation rendered 714 SVGs into PNGs at a maximum dimension of 48 pixels. No runtime rasterizer is required.
-- Offline replay of the user-provided inventory in a disposable in-memory Archi model passed: 3,128 objects, 95 types, 634 folders, 3,126 composition relationships and zero profiles. No diagrams were generated. One manually placed occurrence per type remained without custom images after Sync; the optional utility then applied icons and labels, and another Sync retained that appearance. Repeated application preserved concept/relationship IDs and folder counts. Application took about 2.5 seconds initially and 0.8 seconds on repeat, excluding Azure collection, UI overhead and disk saves.
+- Offline replay of the older user-provided inventory passed: 3,128 objects, 95 types, 634 folders, 3,152 relationships (3,126 compositions plus 26 SQL server-to-database serving links) and zero profiles. Existing SQL databases were retained without duplicates. Repeat sync preserved IDs and optional diagram appearance. Application took about 2.5 seconds initially and 0.9 seconds on repeat, excluding Azure/network/UI/saving. This older export contains no individual Functions, queues or topics; their collection was tested with synthetic ARM responses, not live access.
 - The optional CLI process bridge passed in actual Windows Archi/jArchi with a fake az.cmd: spaces/parentheses in its path, token JSON parsing, noisy stderr drainage, exit-code handling and timeout/child-process termination.
 - Automated tests use disposable models; no existing architecture model or live tenant credentials are used. The user separately exported a live inventory covering 3,128 objects across two subscriptions; that confirms inventory collection for that session, not a live deletion/restoration test.
 
-Runtime result markers: ARCHI_AZURE_SMOKE_PASSED and ARCHI_AZURE_TRANSPORT_PASSED. JSON results go under the ignored work directory. Reproducible .ajs scripts cover model APIs, HTTPS transport and the CLI subprocess bridge. The CLI marker is ARCHI_AZURE_CLI_PROCESS_PASSED.
+Runtime result markers: ARCHI_AZURE_SMOKE_PASSED, ARCHI_AZURE_CHILDREN_SMOKE_PASSED and ARCHI_AZURE_TRANSPORT_PASSED. JSON results go under the ignored work directory. Reproducible .ajs scripts cover model APIs, HTTPS transport and the CLI subprocess bridge. The CLI marker is ARCHI_AZURE_CLI_PROCESS_PASSED.
 
 The isolated test configuration enabled only built-in Archi plugins and jArchi. Other installed plugins were excluded after an unrelated database plugin interrupted the first CLI attempt.
 
 ## Still requiring your environment
+
+- A live run of the new child endpoints against your Service Bus namespaces, Function Apps and SQL servers, including deployment/runtime availability and actual permission coverage.
 
 - Complete device sign-in against your app registration, consent and Conditional Access.
 - Automated CLI sign-in/token testing against a live session is not included: the Java process bridge tests use a fake CLI. The user independently completed authentication and inventory export in their session.

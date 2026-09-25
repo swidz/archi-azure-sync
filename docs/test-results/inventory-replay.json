@@ -1,13 +1,15 @@
 {
   "status": "passed",
+  "relationships": 3152,
   "compositionRelationships": 3126,
+  "servingRelationships": 26,
   "objects": 3128,
   "subscriptions": 2,
   "resourceTypes": 95,
   "foldersIncludingBuiltIn": 634,
   "specializations": 0,
-  "firstApplyMs": 2507,
-  "repeatWithIconsMs": 774,
+  "firstApplyMs": 2491,
+  "repeatWithIconsMs": 897,
   "checks": [
     "standard sync leaves new occurrences without custom icons",
     "standard sync preserves utility-applied appearance",

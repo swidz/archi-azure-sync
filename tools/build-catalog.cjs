@@ -45,7 +45,7 @@ function icon(type) {
     if (!byName.has(name)) throw Error("Icon not found: " + name);
     return byName.get(name);
 }
-const rows = types.map(t => [t, "node", icon(t)]);
+const rows = types.map(t => [t, t.toLowerCase() === "microsoft.web/sites/functions" ? "technology-function" : "node", icon(t)]);
 const header = "// Azure ARM resource types from Microsoft's Bicep index (API versions collapsed).\n" +
     "// Comment out a WHOLE row to disable that specialization. Sync still imports the resource as Node.\n" +
     "// Columns: [ARM type, Archi Technology base type, relative PNG icon path].\n" +

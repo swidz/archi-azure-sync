@@ -1,0 +1,23 @@
+{
+  "status": "passed",
+  "archi": "5.10.0.202608252016",
+  "jArchi": "1.12.0.202604070605",
+  "checks": [
+    "Graal collector expands Service Bus, Functions and SQL without duplicate database",
+    "Creates all valid resource-group and service relationships",
+    "Individual Function uses Technology Function",
+    "Child records parent Azure ID",
+    "Service Bus consists of queues and topics",
+    "Function App assigns Technology Function without invalid Node composition",
+    "SQL server serves its database",
+    "No diagrams or specializations generated",
+    "Repeated sync preserves all relationship IDs",
+    "Relationship matching includes type and preserves unrelated links",
+    "Deletion soft-deletes owned composition, assignment and serving links",
+    "Repeated deletion retains relationship deletion timestamps",
+    "Child restoration retains concept and relationship identity",
+    "Unselected service relationships keep timestamps",
+    "Manual serving relationship reused without ownership takeover",
+    "Children and mixed relationship types survive save/reload"
+  ]
+}

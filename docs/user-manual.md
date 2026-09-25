@@ -100,11 +100,11 @@ var AZURE_USE_SPECIALIZATIONS = false;
 ~~~
 
 - AZURE_ROOT_FOLDER controls the first custom folder below Technology & Physical. It is a model-folder name, not a filesystem path.
-- AZURE_USE_SPECIALIZATIONS defaults to false. Resources are ordinary Nodes. Setting it to true explicitly enables creation/assignment of the mapped native specializations; Sync creates new profiles without images and retains existing profile images.
+- AZURE_USE_SPECIALIZATIONS defaults to false. Resources are ordinary Nodes, except individual Azure Functions use Technology Function. Setting it to true explicitly enables creation/assignment of the mapped native specializations; Sync creates new profiles without images and retains existing profile images.
 
 Sync does not load icon assets, assign custom images or change diagram image/text placement. If you want Azure icons, configure and run the separate **Apply Azure Appearance.ajs** utility described in section 8. Users who prefer plain Archi shapes can skip it.
 
-The existing config/specializations.js filename is retained for compatibility. It controls base types and optional icon mappings. All bundled base types are Node. Unmapped resources use Node and receive a generic Azure icon only when the optional appearance utility is run. You do not need to install thousands of profiles to synchronize.
+The existing config/specializations.js filename is retained for compatibility. It controls base types and optional icon mappings. Bundled base types are Node except Microsoft.Web/sites/functions, which uses technology-function. Unmapped resources use Node and receive a generic Azure icon only when the optional appearance utility is run. You do not need to install thousands of profiles to synchronize.
 
 Do not put passwords, client secrets, access tokens or refresh tokens in these files or model properties.
 
@@ -113,7 +113,7 @@ Do not put passwords, client secrets, access tokens or refresh tokens in these f
 1. Create a new test model, or open a copy of your existing model. Select its root in the Models tree.
 2. Double-click **Sync Azure.ajs** in Scripts Manager.
 3. Choose your authentication method, tenant GUID and subscription GUIDs. Separate multiple subscription IDs with commas, semicolons or whitespace. Device sign-in also asks for the application client ID.
-4. Wait for collection and verification to finish. The script performs Azure read operations only.
+4. Wait for collection and verification to finish, including queues/topics in Service Bus namespaces, individual Functions in Function Apps, and databases on SQL logical servers. The script performs Azure read operations only.
 5. Review the create/update/restore/deletion counts, composition-link count and destination-folder preview. Cancel leaves the model unchanged. On an empty model, imported objects should be creations, with no deletions.
 6. Confirm application. Review the resulting folder tree, element properties and composition relationships. No diagrams are created.
 7. Save the model manually. Commit it using your usual model Git/coArchi workflow when ready.
@@ -147,11 +147,25 @@ If a desired folder name is already occupied by an unrelated, unowned folder, th
 The sync creates ArchiMate **composition** relationships labelled **composed of**, with these directions:
 
 - Subscription Node → each resource group Node in that subscription.
-- Resource group Node → each resource Node belonging to that group, including nested resources returned by inventory.
+- Resource group Node → each resource Node belonging to that group, including queues/topics and SQL databases. Individual Technology Functions are linked through their Function App using assignment; Node-to-Technology-Function composition is invalid in Archi.
 
 Find them in the model's Relationships folder. They express whole-to-part containment, with the composition diamond at the parent. Existing links with matching source/target are reused, so repeating Sync adds no duplicates. Manual relationships retain their labels and properties. Script-owned links are retained with deletion timestamps when either endpoint disappears and restored when both endpoints return. Unselected subscriptions are untouched.
 
 The **Other** folder is not an Azure resource group: it has no synthetic Node or composition links. If a parent Node is missing from inventory, the preview reports it and that link is skipped. The script never creates a view or draws connections. Add existing relationships to your manually created diagrams using Archi when desired.
+
+### Service children and their relationships
+
+| Parent | Imported child | Archi type | Relationship from parent |
+| --- | --- | --- | --- |
+| Service Bus namespace | Queue or topic | Node | Composition, labelled **consists of** |
+| Function App | Individual function | Technology Function | Assignment, labelled **performs** |
+| SQL logical server | Database, including master when returned | Node | Serving, labelled **serves** |
+
+These are collected automatically by Sync and Export Azure Inventory. No additional setup script is required. Existing SQL databases are matched by ARM ID and receive serving relationships without duplicate Nodes. Find children under their existing subscription/resource-group/type folders; Azure-ParentObjectId identifies their parent.
+
+Archi rejects composition from a Node to a Technology Function. Assignment is the valid connection for a Function App Node performing a Technology Function. If you prefer Node plus composition, change the Microsoft.Web/sites/functions row in config/specializations.js to node before the first import. Existing concept type changes require an explicit manual migration in Archi.
+
+See [child-resource discovery](child-resources.md) for permissions, scope and failure handling.
 
 ## 8. Optional: add icons to diagrams
 
@@ -207,12 +221,14 @@ Save your model and keep any custom mapping changes. Download/extract the new co
 
 Replace runtime files and assets, including the updated 48-pixel PNGs. Keep all four utility entry points under scripts/utils. Remove stale copies/links at the old scripts root after verifying that their new counterparts exist. Refresh Scripts Manager or restart Archi. Do not move your Azure inventory/discovery exports into the repository as part of the upgrade.
 
+Version 0.6 adds child collectors and service relationships. Preserve any local catalog edits while merging the Microsoft.Web/sites/functions mapping to technology-function. If Functions were already imported as Nodes, the script stops before mutation on that type change; deliberately change their type in Archi, or retain the Node mapping to use composition.
+
 Version 0.5 makes custom icons entirely optional. If you previously customized image/text positions in Sync Azure.ajs, move those values into Apply Azure Appearance.ajs. Existing custom images are retained, not removed or reformatted by Sync.
 
 Run Sync Azure on a copy of the existing model first. The default next run reorganizes scoped elements and detaches script-owned specialization assignments without adding custom images. It preserves IDs, documentation and diagram layout, reuses existing containment relationships and creates any missing ones. Save/reopen and run again to verify no duplicate concepts or folders before using the updated script for your regular model.
 
 ## 12. Scope and verification
 
-This is an Azure Resource Manager infrastructure inventory. Subscription/resource-group containers and resources returned by the generic ARM resource listing are included. Some child resources need service-specific collectors; adding their mapping alone does not make the collector enumerate them. Entra directory objects and data-plane contents are outside this release.
+This is an Azure Resource Manager infrastructure inventory. Subscription/resource-group containers, generic ARM resources, Service Bus queues/topics, Function App functions, and SQL logical-server databases are included. Other child resources need additional collectors; adding their mapping alone does not make the collector enumerate them. Entra directory objects and data-plane contents are outside this release.
 
 See [verification](verification.md) for executed tests and [catalog and icons](catalog.md) for editing mappings. The scripts run on demand and do not automatically save models, commit Git changes, or schedule future runs.

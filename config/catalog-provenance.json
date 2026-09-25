@@ -12,5 +12,22 @@
     "providerFamily": 338,
     "generic": 2864
   },
-  "scope": "Public Bicep schema snapshot plus subscription/resource-group containers; not every possible private/preview/data-plane type."
+  "scope": "Public Bicep schema snapshot plus subscription/resource-group containers; not every possible private/preview/data-plane type.",
+  "curatedOverrides": [
+    {
+      "type": "Microsoft.ServiceBus/namespaces/queues",
+      "base": "node",
+      "icon": "integration/10836-icon-service-Azure-Service-Bus.png"
+    },
+    {
+      "type": "Microsoft.ServiceBus/namespaces/topics",
+      "base": "node",
+      "icon": "integration/10836-icon-service-Azure-Service-Bus.png"
+    },
+    {
+      "type": "Microsoft.Web/sites/functions",
+      "base": "technology-function",
+      "icon": "compute/10029-icon-service-Function-Apps.png"
+    }
+  ]
 }

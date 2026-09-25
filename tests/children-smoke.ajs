@@ -1,0 +1,52 @@
+/* Synthetic ARM responses and disposable models only; no credentials or Azure calls. */
+(function () {
+    var Paths=Java.type('java.nio.file.Paths'),root=String(Paths.get(__DIR__).getParent().toAbsolutePath());
+    ['lib/core.js','lib/azure-client.js','lib/java-runtime.js','lib/archi-adapter.js','config/specializations.js'].forEach(function(f){load(root+'/'+f);});
+    var C=AzureCore,checks=[];function ok(value,message){C.assert(value,message);checks.push(message);}
+    var tenant='aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa',sub='11111111-1111-1111-1111-111111111111',sub2='22222222-2222-2222-2222-222222222222';
+    var prefix='/subscriptions/'+sub+'/resourceGroups/demo',info={subscriptionId:sub,displayName:'Synthetic',tenantId:tenant,state:'Enabled'};
+    var rg={id:prefix,name:'demo'},bus={id:prefix+'/providers/Microsoft.ServiceBus/namespaces/bus',type:'Microsoft.ServiceBus/namespaces',name:'bus',sku:{tier:'Standard'}};
+    var app={id:prefix+'/providers/Microsoft.Web/sites/app',type:'Microsoft.Web/sites',name:'app',kind:'functionapp,linux'},sql={id:prefix+'/providers/Microsoft.Sql/servers/sql',type:'Microsoft.Sql/servers',name:'sql'};
+    function child(parent,collection,name){return {id:parent.id+'/'+collection+'/'+name,type:parent.type+'/'+collection,name:name};}
+    var q=child(bus,'queues','orders'),t=child(bus,'topics','events'),f=child(app,'functions','process'),db=child(sql,'databases','data');
+    function page(value){return {status:200,body:{value:value}};}
+    var responses=[{status:200,body:info},page([rg]),page([bus,app,sql,db]),page([q]),page([t]),page([f]),page([db])];
+    var now=Date.parse('2026-09-25T10:20:30Z'),io={now:function(){return now;},sleep:function(){},request:function(method){C.assert(method==='GET' && responses.length,'Unexpected request');return responses.shift();}};
+    var snapshot=AzureClient.create(io,{accessToken:'synthetic',expiresAt:now+3600000}).inventory({tenantId:tenant,subscriptionIds:[sub]},[]);
+    ok(snapshot.resources.length===9 && responses.length===0,'Graal collector expands Service Bus, Functions and SQL without duplicate database');
+    var m=$.model.create('Azure child resources smoke');m.setAsCurrent();var map=C.mappings(AZURE_SPECIALIZATIONS),views=$(m).find('view').size();
+    function sync(){var p=C.plan(AzureArchi.readElements(m),snapshot,map);var result=AzureArchi.apply(m,p,{});return {plan:p,result:result};}
+    function concept(id){var found;$(m).find('element').each(function(e){e=e.concept||e;if(String(e.prop('Azure-ObjectId'))===id)found=e;});return found;}
+    function relationships(){var out=[];$(m).find('relationship').each(function(r){out.push(r);});return out;}
+    function link(a,b,type){return relationships().filter(function(r){return String(r.source.prop('Azure-ObjectId'))===a.id && String(r.target.prop('Azure-ObjectId'))===b.id && String(r.type)===type;})[0];}
+    var first=sync();ok(first.result.relationships.created===11 && relationships().length===11,'Creates all valid resource-group and service relationships');
+    ok(String(concept(f.id).type)==='technology-function','Individual Function uses Technology Function');
+    ok(String(concept(f.id).prop('Azure-ParentObjectId'))===app.id,'Child records parent Azure ID');
+    ok(String(link(bus,q,'composition-relationship').name)==='consists of' && !!link(bus,t,'composition-relationship'),'Service Bus consists of queues and topics');
+    ok(!!link(app,f,'assignment-relationship') && !link(rg,f,'composition-relationship'),'Function App assigns Technology Function without invalid Node composition');
+    ok(String(link(sql,db,'serving-relationship').name)==='serves','SQL server serves its database');
+    ok($(m).find('view').size()===views && m.specializations.length===0,'No diagrams or specializations generated');
+    var ids=relationships().map(function(r){return String(r.id);}).sort().join(','),elementIds=AzureArchi.readElements(m).map(function(e){return e.id;}).sort().join(',');
+    ok(sync().result.relationships.created===0 && relationships().map(function(r){return String(r.id);}).sort().join(',')===ids,'Repeated sync preserves all relationship IDs');
+    // A different relation type between the same endpoints must not mask an existing serving link.
+    var extra=m.createRelationship('association-relationship','User note',concept(sql.id),concept(db.id));sync();
+    ok(relationships().length===12 && !!link(sql,db,'serving-relationship'),'Relationship matching includes type and preserves unrelated links');
+    var original=snapshot.resources.slice(),children=[q,t,f,db],owned=relationships().filter(function(r){return String(r.prop('Azure-SyncManagedBy'))===C.OWNER && children.some(function(c){return String(r.target.prop('Azure-ObjectId'))===c.id;});});
+    snapshot.resources=original.filter(function(r){return !C.childSpec(r.type);});snapshot.confirmedMissing=children.map(function(c){return C.identity(tenant,c.id);});snapshot.collectedAt='2026-09-26T11:22:33Z';sync();
+    ok(owned.every(function(r){return String(r.prop('IsDeleted'))==='yes' && String(r.prop('DeletedDate'))==='2026-09-26';}),'Deletion soft-deletes owned composition, assignment and serving links');
+    snapshot.collectedAt='2026-09-27T12:00:00Z';sync();ok(owned.every(function(r){return String(r.prop('DeletedDate'))==='2026-09-26';}),'Repeated deletion retains relationship deletion timestamps');
+    snapshot.resources=original;snapshot.confirmedMissing=[];sync();
+    ok(owned.every(function(r){return String(r.prop('IsDeleted'))==='no' && String(r.prop('DeletedDate'))==='';}) && AzureArchi.readElements(m).map(function(e){return e.id;}).sort().join(',')===elementIds,'Child restoration retains concept and relationship identity');
+    // Empty selected scope in another subscription must leave existing service links alone.
+    var saved=owned.map(function(r){return String(r.prop('LastSyncDate'));}).join(',');
+    snapshot.subscriptionIds=[sub2];snapshot.completedSubscriptions=[sub2];snapshot.resources=[];snapshot.collectedAt='2026-09-28T12:00:00Z';sync();
+    ok(owned.map(function(r){return String(r.prop('LastSyncDate'));}).join(',')===saved,'Unselected service relationships keep timestamps');
+    snapshot.subscriptionIds=[sub];snapshot.completedSubscriptions=[sub];snapshot.resources=original;
+    var serving=link(sql,db,'serving-relationship'),source=serving.source,target=serving.target;serving.delete();
+    var manual=m.createRelationship('serving-relationship','Manual serves',source,target);manual.prop('UserNote','preserve');
+    ok(sync().result.relationships.created===0 && String(manual.name)==='Manual serves' && !manual.prop('Azure-SyncManagedBy'),'Manual serving relationship reused without ownership takeover');
+    var dir=AzureJava.resolve(root,'work');Java.type('java.nio.file.Files').createDirectories(Paths.get(dir));m.save(dir+'/children-smoke.archimate');var loaded=$.model.load(dir+'/children-smoke.archimate');
+    ok(AzureArchi.readElements(loaded).length===9 && $(loaded).find('relationship').size()===12,'Children and mixed relationship types survive save/reload');
+    AzureJava.write(dir+'/children-smoke-result.json',JSON.stringify({status:'passed',archi:String($.process.release.archiVersion),jArchi:String($.process.release.jArchiVersion),checks:checks},null,2));
+    console.log('ARCHI_AZURE_CHILDREN_SMOKE_PASSED');
+}());

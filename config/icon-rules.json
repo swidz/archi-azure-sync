@@ -19,7 +19,10 @@
     "Microsoft.Sql/servers/databases": "10130-icon-service-SQL-Database.png",
     "Microsoft.Sql/servers/elasticPools": "10134-icon-service-SQL-Elastic-Pools.png",
     "Microsoft.Sql/managedInstances": "10136-icon-service-SQL-Managed-Instance.png",
-    "Microsoft.OperationalInsights/workspaces": "00009-icon-service-Log-Analytics-Workspaces.png"
+    "Microsoft.OperationalInsights/workspaces": "00009-icon-service-Log-Analytics-Workspaces.png",
+    "Microsoft.ServiceBus/namespaces/queues": "10836-icon-service-Azure-Service-Bus.png",
+    "Microsoft.ServiceBus/namespaces/topics": "10836-icon-service-Azure-Service-Bus.png",
+    "Microsoft.Web/sites/functions": "10029-icon-service-Function-Apps.png"
   },
   "namespace": {
     "Microsoft.Web": "10035-icon-service-App-Services.png",

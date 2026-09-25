@@ -15,15 +15,15 @@ Rows contain the ARM type, Archi Technology base type and relative image path un
 
 Comment out whole rows to disable their mapping; inventory still imports the type, using Node for new unmapped elements and the generic icon only when the optional appearance utility is run. Native profiles are an advanced opt-in: set AZURE_USE_SPECIALIZATIONS=true in the main script to use them during sync. The optional scripts/utils/Manage Azure Specializations.ajs has its own false-by-default guard; enable it explicitly to reconcile all catalog profiles. Removing profiles preserves elements/relationships. Sync alone does not prune profile definitions or load profile icons: it creates new profiles without images and retains any existing profile images. The optional profile manager still installs images when explicitly enabled.
 
-Every supplied row uses Node. Technology-layer alternatives include system-software, device, communication-network, technology-service and artifact. Existing concept types are not silently replaced; migrate them in Archi before synchronizing.
+All supplied rows use Node except Microsoft.Web/sites/functions, which uses technology-function. Service Bus queues/topics use the Service Bus icon; individual Functions use the Function Apps icon when the optional appearance utility is run. Technology-layer alternatives include system-software, device, communication-network, technology-service and artifact. Existing concept types are not silently replaced; migrate them in Archi before synchronizing.
 
-Profile names are **Azure: <full ARM type>**, distinguishing nested types. Azure kind variants are not separate types: Function Apps and Web Apps can both be Microsoft.Web/sites. This version maps by type.
+Profile names are **Azure: <full ARM type>**, distinguishing nested types. Azure kind variants are not separate types: Function Apps and Web Apps can both be Microsoft.Web/sites. This version maps icons by type. The collector additionally reads the site kind to recognize Function Apps and enumerate their functions. See [child resources](child-resources.md).
 
 ## Refresh types
 
 There is no timeless list of all public/private/preview Azure service types. The checked-in list collapses API versions in Microsoft's Bicep schema index and adds subscription/resource-group containers. Exact source commit, checksum and counts are in config/catalog-provenance.json.
 
-**Discover Azure Resource Types.ajs** reads all pages of selected subscriptions' provider metadata, exporting a Node row per advertised type. It does not register providers or change Azure. This may reveal types absent from the public schema; it still is not a data-plane catalog.
+**Discover Azure Resource Types.ajs** reads all pages of selected subscriptions' provider metadata, exporting a row per advertised type using its existing curated base type, or Node for an unmapped type. It does not register providers or change Azure. This may reveal types absent from the public schema; it still is not a data-plane catalog.
 
 Compare the exported list in Git/an editor, copy desired new rows into config/specializations.js and choose icons. The script does not automatically overwrite comments or custom mappings.
 
@@ -39,7 +39,7 @@ This writes config/specializations.generated.js for review and updates provenanc
 
 The V24 ZIP contains 714 SVGs. This repository includes PNG rasterizations at a maximum dimension of 48 pixels (half the previous 96), preserving aspect ratios and transparent backgrounds. Original designs/names are retained. The ZIP's original terms and FAQ are in assets/terms.
 
-Mapping defaults:
+Original catalog snapshot defaults, before the three child-resource icon overrides:
 
 - 204 resource types use explicit service/nearest mapped parent icons.
 - 338 use provider-family icons.
