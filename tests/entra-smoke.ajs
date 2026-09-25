@@ -1,0 +1,47 @@
+/* Disposable Archi models and synthetic Graph responses only. No live Azure calls. */
+(function () {
+    var Paths=Java.type('java.nio.file.Paths'),root=String(Paths.get(__DIR__).getParent().toAbsolutePath());
+    ['lib/core.js','lib/azure-client.js','lib/entra-applications.js','lib/java-runtime.js','lib/archi-adapter.js','config/specializations.js'].forEach(function(f){load(root+'/'+f);});
+    var C=AzureCore,E=AzureEntra,checks=[];function ok(v,message){C.assert(v,message);checks.push(message);}
+    var tenant='aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa',otherTenant='bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb',sub='11111111-1111-1111-1111-111111111111',sub2='22222222-2222-2222-2222-222222222222';
+    var raw={id:'33333333-3333-3333-3333-333333333333',appId:'cccccccc-cccc-cccc-cccc-cccccccccccc',displayName:'Example registration',passwordCredentials:[{secretText:'SECRET'}]};
+    var clock='2026-09-25T10:20:30Z',queue=[{status:200,body:{value:[raw]}}];
+    var io={now:function(){return Date.parse(clock);},sleep:function(){},request:function(method,url){C.assert(method==='GET' && url.indexOf('https://graph.microsoft.com/v1.0/applications?')===0 && queue.length,'Unexpected request');return queue.shift();}};
+    var snapshot=E.create(io,{accessToken:'synthetic',expiresAt:Date.parse(clock)+3600000,resource:'graph',tenantId:tenant}).inventory(tenant,[]);
+    ok(snapshot.applications.length===1 && !JSON.stringify(snapshot).includes('SECRET'),'Graal Graph collector projects application identity without credentials');
+    var m=$.model.create('Entra registration smoke');m.setAsCurrent();var map=C.mappings(AZURE_SPECIALIZATIONS),selectedTenant=tenant,selectedSub=sub;
+    function sync(include,options){
+        var existing=AzureArchi.readElements(m),arm={tenantId:selectedTenant,subscriptionIds:[selectedSub],completedSubscriptions:[selectedSub],resources:[],confirmedMissing:[],collectedAt:clock};
+        var p=C.plan(existing,arm,map,options);if(include)E.merge(p,E.plan(existing,snapshot,map,options,clock));
+        AzureArchi.apply(m,p,options);return p;
+    }
+    function concept(t){var result;$(m).find('element').each(function(e){e=e.concept||e;if(String(e.prop('Azure-TenantId'))===t)result=e;});return result;}
+    function ancestry(e){var names=[],p=$(e).parent().first();while(p && String(p.type)==='folder'){names.unshift(String(p.name));p=$(p).parent().first();}return names;}
+    var beforeViews=$(m).find('view').size();sync(true);var e=concept(tenant),id=String(e.id),folder=String($(e).parent().first().id);
+    ok(String(e.type)==='node' && String(e.name)===raw.displayName,'App registration is a Node with its display name');
+    ok(ancestry(e).slice(1).join('|')==='Azure|Entra ID ['+tenant+']|App registrations','Entra applications have a tenant-scoped folder hierarchy');
+    ok(String(e.prop('Azure-ObjectId'))===raw.id && String(e.prop('Azure-ApplicationId'))===raw.appId && String(e.prop('Azure-ObjectType'))==='Microsoft.Graph/applications','Object ID and Client ID are distinct element properties');
+    ok(String(e.prop('Azure-SubscriptionId'))==='' && String(e.prop('Azure-ResourceGroupId'))==='' && String(e.prop('Azure-ResourceGroupName'))==='','No subscription or resource group is invented');
+    ok($(m).find('relationship').size()===0 && $(m).find('view').size()===beforeViews && m.specializations.length===0,'No relationships, diagrams or default specializations created for app registrations');
+    var repeated=sync(true);ok(repeated.counts.created===0 && String(concept(tenant).id)===id && String($(e).parent().first().id)===folder,'Repeated sync retains app and folder GUIDs');
+    snapshot.applications[0].displayName='Renamed registration';sync(true,{rootFolderName:'Cloud estate'});
+    ok(String(e.name)==='Renamed registration' && ancestry(e)[1]==='Cloud estate' && String(e.id)===id && String($(e).parent().first().id)===folder,'App and root rename preserve identity');
+    selectedSub=sub2;sync(true);ok(AzureArchi.readElements(m).length===1 && String(e.id)===id,'Changing ARM subscription selection does not duplicate tenant apps');
+    var oldSync=String(e.prop('LastSyncDate')),entraSync=String(m.prop('Azure-LastSuccessfulEntraSyncAt'));clock='2026-09-26T12:00:00Z';sync(false);
+    ok(String(e.prop('LastSyncDate'))===oldSync && String(m.prop('Azure-LastSuccessfulEntraSyncAt'))===entraSync,'ARM-only sync leaves existing Entra elements and their timestamps unchanged');
+    selectedTenant=otherTenant;snapshot={tenantId:otherTenant,completed:true,applications:[{id:raw.id,appId:raw.appId,displayName:'Another tenant app'}],confirmedMissing:[],collectedAt:clock};sync(true);
+    ok(AzureArchi.readElements(m).length===2 && String(concept(otherTenant).id)!==id && String(e.prop('LastSyncDate'))===oldSync,'Tenant-qualified identities isolate applications with the same Object ID');
+    selectedTenant=tenant;snapshot={tenantId:tenant,completed:true,applications:[],confirmedMissing:[E.identity(tenant,raw.id)],collectedAt:clock};sync(true);
+    ok(String(e.prop('IsDeleted'))==='yes' && String(e.prop('DeletedDate'))==='2026-09-26' && String(e.id)===id,'Confirmed application deletion is soft and retains the Node');
+    clock='2026-09-27T12:00:00Z';sync(true);ok(String(e.prop('DeletedDate'))==='2026-09-26','Repeated app absence preserves deletion date');
+    snapshot.applications=[{id:raw.id,appId:raw.appId,displayName:raw.displayName}];snapshot.confirmedMissing=[];sync(true);
+    ok(String(e.prop('IsDeleted'))==='no' && String(e.prop('DeletedDate'))==='' && String(e.prop('CreatedDate'))==='2026-09-25' && String(e.id)===id,'App restoration preserves GUID and original repository creation date');
+    var view=m.createArchimateView('Manually created app view'),occurrence=view.add(e,10,10,200,90);sync(true);
+    ok(occurrence.image===null,'Standard sync leaves app diagram occurrences without icons');
+    AzureArchi.applyAppearance(m,AzureArchi.prepareAppearance(m,map,root),{});
+    ok(occurrence.image!==null && occurrence.imageSource===1 && occurrence.imagePosition===1,'Optional appearance utility supports the App Registrations icon');
+    var dir=AzureJava.resolve(root,'work');m.save(dir+'/entra-smoke.archimate');var loaded=$.model.load(dir+'/entra-smoke.archimate');
+    var read=AzureArchi.readElements(loaded);ok(read.length===2 && read.some(function(x){return x.id===id && x.properties['Azure-ApplicationId']===raw.appId;}),'App Nodes and tenant properties survive save/reload');
+    AzureJava.write(dir+'/entra-smoke-result.json',JSON.stringify({status:'passed',archi:String($.process.release.archiVersion),jArchi:String($.process.release.jArchiVersion),checks:checks},null,2));
+    console.log('ARCHI_ENTRA_SMOKE_PASSED');
+}());

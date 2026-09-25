@@ -1,11 +1,11 @@
 # Connecting to Azure
 
-Every Azure-facing script asks you to select an authentication method. Both methods use your own user account and Azure RBAC permissions; neither stores a password, secret or access token in the Archi model.
+Every Azure-facing script asks you to select an authentication method. Both methods use your own user account and Azure RBAC and, for app registrations, Microsoft Graph permissions; neither stores a password, secret or access token in the Archi model.
 
 | Method in the selector | Your own app registration? | Extra installation | How you sign in |
 | --- | --- | --- | --- |
 | **Device sign-in (app registration)** | Yes: a public-client app, without a client secret | None beyond Archi/jArchi | Enter the displayed code on Microsoft's website and complete MFA |
-| **Azure CLI (no own app registration)** | No custom registration for this script | Azure CLI 2.54 or later | Run az login in a terminal; Archi obtains an ARM token from that existing CLI user session |
+| **Azure CLI (no own app registration)** | No custom registration for this script | Azure CLI 2.54 or later | Run az login in a terminal; Archi obtains separate ARM and enabled Graph tokens from that CLI user session |
 
 The choice is available in **Sync Azure**, **Export Azure Inventory** and **Discover Azure Resource Types**. **Manage Azure Specializations** is offline and does not sign in. After a successful applied synchronization, Azure-AuthMethod records the selection and places it first next time. You can switch methods on every run. The original device method remains the initial default.
 
@@ -13,6 +13,7 @@ The choice is available in **Sync Azure**, **Export Azure Inventory** and **Disc
 
 - Know the **tenant GUID** and the **subscription GUIDs** you want to inventory.
 - The signed-in user needs Reader or equivalent full read permissions at each selected subscription scope. Authentication does not grant additional resource access.
+- Enabled Entra app inventory also requires tenant-wide app read access through Microsoft Graph. ARM Reader alone does not supply it. See [Entra application setup](entra-applications.md).
 - Select only subscriptions belonging to that tenant. Use another run for another tenant.
 - This release supports Azure public cloud (AzureCloud), not sovereign clouds or cross-tenant Azure Lighthouse inventory.
 - Begin with a copy of your model and review the preview before applying changes.
@@ -62,7 +63,7 @@ No new client ID or client secret is needed for this method.
 1. Select the intended Archi model and run an Azure script.
 2. Choose **Azure CLI (no own app registration)**.
 3. Enter the tenant ID and one or more subscription IDs.
-4. The script checks your CLI account and obtains a token for Azure Resource Manager.
+4. The script checks your CLI account and obtains a token for Azure Resource Manager; enabled Entra collection requests a separate Microsoft Graph token.
 5. Review and apply the synchronization as usual.
 
 The CLI method does **not** ask for a client ID. It retains any previously configured device-sign-in client ID so you can switch back.
@@ -114,7 +115,8 @@ This also affects other tools using the same CLI session.
 2. Record **Directory (tenant) ID** and **Application (client) ID**. The application's directory Object ID is not its Client ID.
 3. In Authentication / advanced settings, enable **Allow public client flows**. Device authorization needs no client secret or redirect URI.
 4. Add **Azure Service Management → Delegated permissions → user_impersonation**. Obtain consent according to your organization's policy.
-5. Assign the signed-in user the required Azure subscription read permissions.
+5. For app registration inventory, add **Microsoft Graph → Delegated permissions → Application.Read.All** and obtain administrator consent. The signed-in user also needs tenant-wide access to read app registrations.
+6. Assign the signed-in user the required Azure subscription read permissions.
 
 ### Connect from Archi
 
@@ -124,7 +126,7 @@ This also affects other tools using the same CLI session.
 4. Sign in using your own account and complete MFA.
 5. Return to Archi and click OK, then review the resulting change counts.
 
-The script requests https://management.azure.com/user_impersonation from the tenant-specific OAuth v2 device endpoint. It does not collect your password, request offline_access or maintain a persistent token cache. This method signs in anew for each operation.
+The script requests https://management.azure.com/user_impersonation from the tenant-specific OAuth v2 device endpoint. It does not collect your password, request offline_access or maintain a persistent token cache. This method signs in anew for each operation. Enabled Entra collection additionally requests https://graph.microsoft.com/Application.Read.All in a second device-code flow for the same tenant/client. Both token references are cleared after use.
 
 Conditional Access may prohibit device-code sign-in. Use an authentication option approved by your organization; no policy is bypassed.
 
@@ -145,13 +147,14 @@ While synchronous sign-in/polling or CLI commands run, Archi may temporarily be 
 | CLI tenant/subscription mismatch | Sign in to the intended tenant and enter GUIDs from az account list. |
 | CLI cloud is not AzureCloud | This release supports public Azure only. Configure the CLI for AzureCloud and sign in there if that is your intended environment. |
 | Client ID requested unexpectedly | Select the Azure CLI option instead of Device sign-in. |
-| HTTP 403 | Check the user's Azure RBAC access to every selected subscription. |
+| ARM HTTP 403 | Check the user's Azure RBAC access to every selected subscription. |
+| Microsoft Graph HTTP 403 / consent required | Check Graph Application.Read.All consent (device method), CLI Graph access and the user's tenant-wide app-read permissions. The combined run stops before model changes. Set AZURE_INCLUDE_ENTRA_APPLICATIONS=false to run ARM-only sync. |
 | Device-code flow is blocked | Ask your identity administrators which interactive flow is approved; CLI's broker/browser login is a separate option. |
 | Can I enter my password directly in the script? | No. Both implemented methods use Microsoft sign-in. Password-only ROPC cannot satisfy MFA and still requires an application client ID. |
 | Service principal, certificate or managed identity? | These are not selectable authentication methods in this release. They would require a separate workload-authentication design. |
 
 ## Network and references
 
-Inventory HTTPS calls still run directly from Java to management.azure.com, whichever authentication method is selected. Direct device authentication additionally calls login.microsoftonline.com. Java validates TLS using its JVM trust configuration, with API redirects disabled. Configure corporate proxy/trust settings for both Java and Azure CLI if needed; neither script disables certificate validation.
+Inventory HTTPS calls run directly from Java to management.azure.com and, for enabled app registration collection, graph.microsoft.com, whichever authentication method is selected. Direct device authentication additionally calls login.microsoftonline.com. Java validates TLS using its JVM trust configuration, with API redirects disabled. Configure corporate proxy/trust settings for both Java and Azure CLI if needed; neither script disables certificate validation.
 
 Sources: [CLI installation](https://learn.microsoft.com/en-us/cli/azure/install-azure-cli), [interactive CLI sign-in and token expiry fields](https://learn.microsoft.com/en-us/cli/azure/authenticate-azure-cli-interactively), [CLI token command](https://learn.microsoft.com/en-us/cli/azure/account#az-account-get-access-token), [device authorization](https://learn.microsoft.com/en-us/entra/identity-platform/v2-oauth2-device-code), [public-client configuration](https://learn.microsoft.com/en-us/entra/identity-platform/msal-client-applications), [password-flow limitations](https://learn.microsoft.com/en-us/entra/identity-platform/v2-oauth-ropc), [Reader role](https://learn.microsoft.com/en-us/azure/role-based-access-control/built-in-roles/general#reader).

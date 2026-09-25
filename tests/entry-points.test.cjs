@@ -10,7 +10,8 @@ for(const [file,mode] of [["Sync Azure.ajs","sync"],["utils/Apply Azure Appearan
             load:p=>{assert.ok(fs.existsSync(p),p);loaded.push(p);},AZURE_SPECIALIZATIONS:[],
             AzureApp:{run:(...args)=>calls.push(args)}
         });
-        assert.equal(calls[0][0],mode);assert.equal(calls[0][1],root);assert.equal(loaded.length,8);
+        assert.equal(calls[0][0],mode);assert.equal(calls[0][1],root);assert.equal(loaded.length,mode==="sync"||mode==="export"?9:8);
+        if(mode==="sync"||mode==="export")assert.equal(calls[0][3].includeEntraApplications,true);
         if(mode==="sync") { assert.equal(calls[0][3].imagePosition,undefined); assert.equal(calls[0][3].textPosition,undefined); }
         if(mode==="appearance") { assert.equal(calls[0][3].imagePosition,"top-center"); assert.equal(calls[0][3].textPosition,"bottom-center"); }
         if(mode==="sync"||mode==="specializations")assert.equal(calls[0][3].useSpecializations,false);

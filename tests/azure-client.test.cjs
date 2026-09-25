@@ -89,3 +89,12 @@ test("provider discovery includes resource containers and deduplicates types",()
     const io=H.io([providers]);
     assert.deepEqual(A.create(io,H.token).discover([H.sub]),["Microsoft.Compute/virtualMachines","Microsoft.Resources/resourceGroups","Microsoft.Resources/subscriptions"]);
 });
+
+
+test("Graph device sign-in requests only delegated Application.Read.All in the selected tenant",()=>{
+ const io=H.io([H.ok({...device}),H.ok({access_token:'graph-token',expires_in:3600})]);
+ const token=A.deviceLogin(io,cfg,()=>true,'graph');
+ assert.equal(new URLSearchParams(io.calls[0][3]).get('scope'),'https://graph.microsoft.com/Application.Read.All');
+ assert.ok(io.calls[0][1].includes('/'+H.tenant+'/'));assert.equal(token.resource,'graph');assert.equal(token.tenantId,H.tenant);
+ assert.throws(()=>A.deviceLogin(H.io([]),cfg,()=>true,'bad'),/Unknown token resource/);
+});

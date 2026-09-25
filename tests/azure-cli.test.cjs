@@ -67,3 +67,11 @@ test("shell metacharacters and relative executable paths are rejected",()=>{
         assert.throws(()=>A.command("/usr/bin/az",[arg],false),/arguments/);
     assert.throws(()=>A.command("az",["account"],false),/absolute/);
 });
+
+
+test("CLI Graph token uses a separate audience with the same validated tenant",()=>{
+ const fake=io(), token=A.signIn(fake,config,'graph');
+ assert.equal(fake.calls[1][fake.calls[1].indexOf('--resource')+1],'https://graph.microsoft.com/');
+ assert.equal(token.resource,'graph');assert.equal(token.tenantId,H.tenant);
+ assert.throws(()=>A.signIn(io(),config,'https://evil.test'),/Unknown token resource/);
+});

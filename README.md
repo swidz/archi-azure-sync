@@ -1,6 +1,6 @@
 # Azure resources for Archi
 
-Synchronize Azure Resource Manager inventory into an existing, selected Archi model using jArchi. **Run scripts/Sync Azure.ajs for everyday use.** The scripts in scripts/utils are optional inspection and maintenance tools.
+Synchronize Azure Resource Manager inventory and Entra app registrations into an existing, selected Archi model using jArchi. **Run scripts/Sync Azure.ajs for everyday use.** The scripts in scripts/utils are optional inspection and maintenance tools.
 
 **[User manual: installation from GitHub, first run, and subsequent runs](docs/user-manual.md)** · [Azure connection options](docs/authentication.md)
 
@@ -9,6 +9,8 @@ Resources default to ordinary Technology-layer **Nodes**; individual Azure Funct
 **Icons are optional. Sync Azure.ajs does not add custom images or change diagram image/text placement.** Run **scripts/utils/Apply Azure Appearance.ajs** only if you want Azure icons on Nodes you have manually placed in views. It runs locally, without Azure authentication. Bundled images have a maximum dimension of **48 pixels**; the utility defaults to images at **Top Center** and names at **Bottom Center**. Specializations remain off by default.
 
 Sync creates **unnamed composition relationships** from each subscription to its resource groups and from each resource group to its Node resources. It also collects Service Bus queues/topics, individual Azure Functions and SQL databases with the [service relationships described here](docs/child-resources.md). Generated relationships follow their **source object** under **Relationships → Azure → Source subscription → Source resource group (or Other) → Source object type**, using the same AZURE_ROOT_FOLDER setting. Repeated runs search the entire model by actual **source element GUID + target element GUID + relationship type** and reuse existing links. **No script generates diagrams or diagram connections.**
+
+Entra app registrations are imported as **Nodes** under **Azure → Entra ID [tenant GUID] → App registrations**. This is enabled by default and requires Microsoft Graph read access. See [Entra setup and scope](docs/entra-applications.md) before your first upgraded run; set AZURE_INCLUDE_ENTRA_APPLICATIONS=false for ARM-only sync.
 
 ## Quick start
 
@@ -19,7 +21,7 @@ Sync creates **unnamed composition relationships** from each subscription to its
 5. Select a test model, run **Sync Azure.ajs**, enter tenant/subscription IDs, review the preview and apply. No utility script is required first.
 6. Review, save and commit the model using your usual workflow. **Optional:** after manually placing elements in a view, run **utils/Apply Azure Appearance.ajs** if you want icons and label positioning. Skip it for plain Archi shapes.
 
-All selected subscriptions in one run must belong to the specified tenant. Unselected subscriptions and other tenants' elements remain untouched. Azure public cloud is supported.
+All selected subscriptions in one run must belong to the specified tenant. Enabled Entra collection reads that whole tenant once, independently of the subscription list. Unselected subscriptions and other tenants' elements remain untouched. Azure public cloud is supported.
 
 ## Script settings
 
@@ -28,6 +30,7 @@ At the top of scripts/Sync Azure.ajs:
 ~~~javascript
 var AZURE_ROOT_FOLDER = "Azure";
 var AZURE_USE_SPECIALIZATIONS = false;
+var AZURE_INCLUDE_ENTRA_APPLICATIONS = true;
 ~~~
 
 Subscription folder labels include display name and GUID. Full ARM types form single folder labels. Missing resource groups use Other; a real group named Other is labelled Other (resource group). Changing the root name renames the managed roots under Technology & Physical and Relationships. Empty folders are retained.
@@ -51,7 +54,7 @@ Positions accept top/middle/bottom combined with left/center/right, for example 
 | scripts/utils/Discover Azure Resource Types.ajs | Export provider-advertised types for manual catalog review; does not merge them automatically. |
 | scripts/utils/Manage Azure Specializations.ajs | Optional offline bulk profile maintenance, explicitly guarded by its own false-by-default flag. Not needed for synchronization. |
 
-config/specializations.js contains **3,406 editable type/base/icon mappings** even when profile creation is disabled. All shipped base types are Node except Microsoft.Web/sites/functions, which uses technology-function; unmapped types use Node, with the generic Azure icon only when the appearance utility is run. The V24 archive contributes **714 PNG icons**, reused across resource types. Commenting out a mapping does not filter inventory. Existing custom images remain until you change or remove them in Archi; skipping the appearance utility does not remove previously applied images. See [catalog and icons](docs/catalog.md).
+config/specializations.js contains **3,407 editable type/base/icon mappings** (3,406 ARM types plus the curated Microsoft.Graph/applications entry) even when profile creation is disabled. All shipped base types are Node except Microsoft.Web/sites/functions, which uses technology-function; unmapped types use Node, with the generic Azure icon only when the appearance utility is run. The V24 archive contributes **714 PNG icons**, reused across resource types. Commenting out a mapping does not filter inventory. Existing custom images remain until you change or remove them in Archi; skipping the appearance utility does not remove previously applied images. See [catalog and icons](docs/catalog.md).
 
 ## Element properties
 
@@ -60,13 +63,14 @@ config/specializations.js contains **3,406 editable type/base/icon mappings** ev
 | Azure-TenantId | Subscription tenant, verified against Azure metadata |
 | Azure-SubscriptionId | Selected subscription GUID |
 | Azure-SubscriptionName | Subscription display name |
-| Azure-ObjectId | Full ARM resource ID, **not an Entra directory object GUID** |
-| Azure-ObjectType | ARM type, such as Microsoft.Compute/virtualMachines |
+| Azure-ObjectId | Full ARM resource ID for infrastructure; directory Object ID GUID for Entra app registrations |
+| Azure-ObjectType | ARM type, such as Microsoft.Compute/virtualMachines, or Microsoft.Graph/applications |
+| Azure-ApplicationId | Application (Client) ID for Entra registrations; empty on ARM elements |
 | Azure-ObjectName | Name returned by Azure |
 | Azure-ResourceGroupId | Full resource-group ARM ID, empty for subscription-level objects |
 | Azure-ResourceGroupName | Group name, empty for subscription-level objects |
 | Azure-ParentObjectId | Namespace, Function App or SQL server ARM ID for the supported child types; otherwise empty |
-| Azure-URL | Tenant-specific Azure portal resource link |
+| Azure-URL | Tenant-specific Azure portal link for ARM; Graph application endpoint for Entra |
 | CreatedDate, CreatedTime | First creation in this Archi repository, not Azure provisioning time |
 | DeletedDate, DeletedTime | First confirmed absence; empty while active; preserved on repeated absent runs |
 | LastSyncDate, LastSyncTime | Latest **successful** reconciliation of the selected element, including deleted elements |
@@ -98,6 +102,7 @@ The script stores only non-secret configuration and synchronization metadata:
 - Azure-AuthMethod — selectable device-code or azure-cli authentication, remembered after successful sync.
 - Azure-TenantId, Azure-ClientId, Azure-SubscriptionIds — next-run defaults; CLI does not require a client ID.
 - Azure-LastSuccessfulSyncAt, Azure-LastSuccessfulSyncSubscriptions — last applied run.
+- Azure-LastSuccessfulEntraSyncAt — last applied run including Entra applications.
 - Azure-SyncSpecializations — ownership registry for managed profiles.
 
 An optional Azure-UserId property may document an expected account but is not used to authenticate; the browser determines the signed-in account. There is no password/secret prompt or token storage in the model. Direct device sign-in has no persistent token cache and requests no offline_access scope. The CLI option reuses Azure CLI's own local authentication cache, which must stay outside your Git repositories. Both methods hold the current token in memory during the run and clear the retained reference afterward. JVM memory cannot guarantee immediate secure erasure.
@@ -106,8 +111,8 @@ The **script repository** is separate from the **model repository**. Scripts do 
 
 ## Reconciliation and failures
 
-- Identity is case-insensitive **tenant ID + ARM resource ID**.
-- All selected subscriptions and all list pages must complete before model changes.
+- ARM identity is case-insensitive **tenant ID + ARM resource ID**; Entra applications use a separate tenant + Graph Object ID identity.
+- All selected subscriptions and enabled Entra application pages/checks must complete before model changes.
 - Pagination stays on the selected subscription and fixed ARM host; redirects are disabled.
 - HTTP 429/5xx receive bounded retries. Malformed responses, duplicate identities, token expiry, disabled subscriptions or tenant mismatch abort.
 - Missing list entries are individually fetched using provider-advertised API versions. Only recognized resource-not-found errors permit soft deletion. HTTP 403, ambiguous 404 and unavailable API metadata abort.
@@ -122,9 +127,9 @@ To **explicitly adopt** an existing manually maintained Azure element, set its e
 
 ## Inventory coverage
 
-This release inventories Azure public cloud's **generic ARM Resources List**, selected resource groups and subscription containers, plus dedicated lists for **Service Bus queues/topics, Function App functions, and Azure SQL logical-server databases**. It follows every page and imports any returned resource type, even if absent from the catalog.
+This release inventories Azure public cloud's **generic ARM Resources List**, selected resource groups and subscription containers, plus dedicated lists for **Service Bus queues/topics, Function App functions, and Azure SQL logical-server databases**. It follows every page and imports any returned resource type, even if absent from the catalog. Microsoft Graph additionally lists app registrations from the selected tenant when enabled.
 
-A type catalog does not imply that Azure's generic listing returns every object of that type. Other nested resources, such as subnets, still require additional collectors. Function deployment slots, Service Bus topic subscriptions and SQL managed-instance databases are not expanded by these new collectors. Entra users/groups, blobs, Kubernetes workloads, SaaS application objects, tenant/management-group scope and sovereign clouds are outside this release. Only subscription/resource-group and the documented service relationships are created; diagrams are never generated. Treat the export as an ARM infrastructure inventory, not a universal Azure CMDB.
+A type catalog does not imply that Azure's generic listing returns every object of that type. Other nested resources, such as subnets, still require additional collectors. Function deployment slots, Service Bus topic subscriptions and SQL managed-instance databases are not expanded by these new collectors. Entra users/groups, enterprise applications/service principals, managed identities, agent identity blueprints, blobs, Kubernetes workloads, SaaS data, other tenant/management-group objects and sovereign clouds are outside this release. Only subscription/resource-group and the documented service relationships are created; diagrams are never generated. The export covers ARM infrastructure and enabled Entra app registrations; it is not a universal Azure CMDB.
 
 Individual missing-resource checks reduce false deletions from incomplete visibility. A provider's authorization-masked 404 still cannot be distinguished with certainty from deletion. Use a stable account with subscription-wide Reader permissions and review deletion counts.
 

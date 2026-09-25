@@ -1,0 +1,24 @@
+{
+  "status": "passed",
+  "archi": "5.10.0.202608252016",
+  "jArchi": "1.12.0.202604070605",
+  "checks": [
+    "Graal Graph collector projects application identity without credentials",
+    "App registration is a Node with its display name",
+    "Entra applications have a tenant-scoped folder hierarchy",
+    "Object ID and Client ID are distinct element properties",
+    "No subscription or resource group is invented",
+    "No relationships, diagrams or default specializations created for app registrations",
+    "Repeated sync retains app and folder GUIDs",
+    "App and root rename preserve identity",
+    "Changing ARM subscription selection does not duplicate tenant apps",
+    "ARM-only sync leaves existing Entra elements and their timestamps unchanged",
+    "Tenant-qualified identities isolate applications with the same Object ID",
+    "Confirmed application deletion is soft and retains the Node",
+    "Repeated app absence preserves deletion date",
+    "App restoration preserves GUID and original repository creation date",
+    "Standard sync leaves app diagram occurrences without icons",
+    "Optional appearance utility supports the App Registrations icon",
+    "App Nodes and tenant properties survive save/reload"
+  ]
+}

@@ -1,8 +1,10 @@
-// Azure ARM resource types from Microsoft's Bicep index (API versions collapsed).
+// Azure ARM resource types from Microsoft's Bicep index, plus a curated Microsoft Graph application type.
 // Base/icon mappings apply even with specializations OFF (default). Comment out a WHOLE row to disable its mapping.
-// Columns: [ARM type, Archi Technology base type, relative PNG icon path].
-// Sync applies custom icons to existing diagram occurrences. Profiles are opt-in; see docs/user-manual.md.
+// Columns: [ARM or Graph type, Archi Technology base type, relative PNG icon path].
+// The optional appearance utility applies custom icons. Profiles are opt-in; see docs/user-manual.md.
 var AZURE_SPECIALIZATIONS = [
+    // Tenant-scoped Microsoft Graph type, collected separately from ARM resources.
+    ["Microsoft.Graph/applications","node","identity/10232-icon-service-App-Registrations.png"],
     ["ArizeAi.ObservabilityEval/organizations","node","general/10001-icon-service-All-Resources.png"],
     ["Astronomer.Astro/organizations","node","general/10001-icon-service-All-Resources.png"],
     ["Commvault.ContentStore/cloudAccounts","node","general/10001-icon-service-All-Resources.png"],

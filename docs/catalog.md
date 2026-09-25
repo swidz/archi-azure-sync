@@ -11,9 +11,11 @@ var AZURE_SPECIALIZATIONS = [
 ];
 ~~~
 
-Rows contain the ARM type, Archi Technology base type and relative image path under assets/icons. Use exact paths from assets/icon-index.json; Linux paths are case-sensitive.
+Rows contain the ARM or supported Graph type, Archi Technology base type and relative image path under assets/icons. Use exact paths from assets/icon-index.json; Linux paths are case-sensitive.
 
 Comment out whole rows to disable their mapping; inventory still imports the type, using Node for new unmapped elements and the generic icon only when the optional appearance utility is run. Native profiles are an advanced opt-in: set AZURE_USE_SPECIALIZATIONS=true in the main script to use them during sync. The optional scripts/utils/Manage Azure Specializations.ajs has its own false-by-default guard; enable it explicitly to reconcile all catalog profiles. Removing profiles preserves elements/relationships. Sync alone does not prune profile definitions or load profile icons: it creates new profiles without images and retains any existing profile images. The optional profile manager still installs images when explicitly enabled.
+
+The curated Microsoft.Graph/applications row adds Entra app registrations as Node with the App Registrations icon. App Nodes must retain the Node base type. There are 3,407 mappings in total: 3,406 ARM types plus this Graph entry.
 
 All supplied rows use Node except Microsoft.Web/sites/functions, which uses technology-function. Service Bus queues/topics use the Service Bus icon; individual Functions use the Function Apps icon when the optional appearance utility is run. Technology-layer alternatives include system-software, device, communication-network, technology-service and artifact. Existing concept types are not silently replaced; migrate them in Archi before synchronizing.
 
@@ -33,7 +35,7 @@ Maintainers can regenerate the public snapshot:
 node tools/build-catalog.cjs path/to/bicep-generated-index.json <source-commit>
 ~~~
 
-This writes config/specializations.generated.js for review and updates provenance/icon index. It leaves the user's specializations.js untouched. Review and merge the output; the extra generated copy need not be committed.
+This writes config/specializations.generated.js for review and updates provenance/icon index. It leaves the user's specializations.js untouched. Review and merge the output; preserve the separately curated Microsoft.Graph/applications row, which is not in the Bicep index or ARM provider discovery. The extra generated copy need not be committed.
 
 ## Icons
 

@@ -86,7 +86,7 @@ For a specific tenant, use az login --tenant "TENANT_GUID". Complete the sign-in
 
 ### Option B: Device sign-in with your own app registration
 
-Configure an Entra public-client application, enable public client flows, and configure Azure Service Management delegated user_impersonation permission and consent. No client secret is needed. Choose **Device sign-in (app registration)**, enter tenant/subscription/client IDs, and complete the displayed device-code sign-in.
+Configure an Entra public-client application, enable public client flows, and configure Azure Service Management delegated user_impersonation permission and consent. For enabled Entra app inventory, also configure Microsoft Graph delegated Application.Read.All and admin consent. No client secret is needed. Choose **Device sign-in (app registration)**, enter tenant/subscription/client IDs, and complete the displayed device-code sign-in.
 
 The [connection guide](authentication.md) contains complete setup, permission requirements, authentication choices, and troubleshooting for both methods.
 
@@ -97,9 +97,11 @@ At the top of **scripts/Sync Azure.ajs**:
 ~~~javascript
 var AZURE_ROOT_FOLDER = "Azure";
 var AZURE_USE_SPECIALIZATIONS = false;
+var AZURE_INCLUDE_ENTRA_APPLICATIONS = true;
 ~~~
 
 - AZURE_ROOT_FOLDER controls the custom root name under both Technology & Physical and Relationships. The default creates Technology & Physical → Azure for elements and Relationships → Azure for generated links. It is a model-folder name, not a filesystem path.
+- AZURE_INCLUDE_ENTRA_APPLICATIONS defaults to true. It adds tenant-wide app registrations via Microsoft Graph; configure [Entra access](entra-applications.md) first. Set false for ARM-only runs, leaving existing app Nodes untouched. The Export utility has a separate flag with the same default.
 - AZURE_USE_SPECIALIZATIONS defaults to false. Resources are ordinary Nodes, except individual Azure Functions use Technology Function. Setting it to true explicitly enables creation/assignment of the mapped native specializations; Sync creates new profiles without images and retains existing profile images.
 
 Sync does not load icon assets, assign custom images or change diagram image/text placement. If you want Azure icons, configure and run the separate **Apply Azure Appearance.ajs** utility described in section 8. Users who prefer plain Archi shapes can skip it.
@@ -113,7 +115,7 @@ Do not put passwords, client secrets, access tokens or refresh tokens in these f
 1. Create a new test model, or open a copy of your existing model. Select its root in the Models tree.
 2. Double-click **Sync Azure.ajs** in Scripts Manager.
 3. Choose your authentication method, tenant GUID and subscription GUIDs. Separate multiple subscription IDs with commas, semicolons or whitespace. Device sign-in also asks for the application client ID.
-4. Wait for collection and verification to finish, including queues/topics in Service Bus namespaces, individual Functions in Function Apps, and databases on SQL logical servers. The script performs Azure read operations only.
+4. Wait for collection and verification to finish, including queues/topics in Service Bus namespaces, individual Functions in Function Apps, databases on SQL logical servers, and enabled Entra app registrations. Direct device authentication presents a second sign-in for Microsoft Graph. The script performs read operations only.
 5. Review the create/update/restore/deletion counts, composition-link count and destination-folder preview. Cancel leaves the model unchanged. On an empty model, imported objects should be creations, with no deletions.
 6. Confirm application. Review the resulting folder tree, element properties and composition relationships. No diagrams are created.
 7. Save the model manually. Commit it using your usual model Git/coArchi workflow when ready.
@@ -193,6 +195,12 @@ Archi rejects composition from a Node to a Technology Function. Assignment is th
 
 See [child-resource discovery](child-resources.md) for permissions, scope and failure handling.
 
+### Entra app registrations
+
+App registrations are **Node** elements under **Technology & Physical → Azure → Entra ID [tenant GUID] → App registrations**. Their subscription/group properties are empty. Azure-ObjectId stores the directory Object ID; Azure-ApplicationId stores the Application (Client) ID. All apps visible with tenant-wide read permission are collected once, independently of the subscription selection. No subscription or group relationships are generated for them. Repeat runs preserve Node identity and use the same soft-deletion rules.
+
+See [Entra connection and inventory details](entra-applications.md) for both authentication methods, permissions and properties.
+
 ## 8. Optional: add icons to diagrams
 
 **Skip this section if you do not want Azure icons.** Sync updates inventory, folders and composition relationships without assigning custom images or formatting existing diagram objects. It does not remove images that were previously applied; remove unwanted custom images using Archi's image settings.
@@ -226,7 +234,7 @@ No diagrams or connections are generated. The utility always assigns custom imag
 3. Review the counts and apply.
 4. Inspect changes, save, and commit as appropriate.
 
-Existing elements are matched by tenant and ARM resource ID. A repeat run does not create duplicates. CreatedDate/CreatedTime remain unchanged; LastSyncDate/LastSyncTime advance on successful application. Confirmed missing resources remain in the model with IsDeleted=yes and deletion timestamps. If the same ARM ID returns, the original element is restored and deletion timestamps cleared.
+Existing ARM elements are matched by tenant and ARM resource ID. Entra applications use tenant and Graph Object ID. A repeat run does not create duplicates. CreatedDate/CreatedTime remain unchanged; LastSyncDate/LastSyncTime advance on successful application. Confirmed missing resources remain in the model with IsDeleted=yes and deletion timestamps. If the same ARM ID returns, the original element is restored and deletion timestamps cleared.
 
 Authentication, incomplete inventory, or uncertain deletion checks stop before model application. An unexpected error during application can leave partial in-memory changes; use **Edit → Undo** before retrying.
 
@@ -253,12 +261,14 @@ Version 0.5 makes custom icons entirely optional. If you previously customized i
 
 Run Sync Azure on a copy of the existing model first. The default next run reorganizes scoped elements and detaches script-owned specialization assignments without adding custom images. It preserves IDs, documentation and diagram layout, reuses existing containment relationships and creates any missing ones. Save/reopen and run again to verify no duplicate concepts or folders before using the updated script for your regular model.
 
+Version 0.10 enables Entra app registration collection by default. Update all library files and configure Graph access, or set AZURE_INCLUDE_ENTRA_APPLICATIONS=false to retain ARM-only behavior. Preserve the Microsoft.Graph/applications Node mapping when merging your custom catalog.
+
 Version 0.9 removes names from synced relationships. Run Sync Azure.ajs and apply for each relevant subscription to clear existing names; no separate cleanup utility is required.
 
 Version 0.8 expands the relationship folder tree to Azure → Source subscription → Source resource group (or Other) → Source object type. Version 0.7 introduced the Azure relationship root and endpoint GUID properties. After updating the complete package, run Sync Azure.ajs normally and apply: existing owned links in the selected scope are relocated automatically without changing their identity. No utility script is needed.
 
 ## 12. Scope and verification
 
-This is an Azure Resource Manager infrastructure inventory. Subscription/resource-group containers, generic ARM resources, Service Bus queues/topics, Function App functions, and SQL logical-server databases are included. Other child resources need additional collectors; adding their mapping alone does not make the collector enumerate them. Entra directory objects and data-plane contents are outside this release.
+This is an Azure Resource Manager infrastructure inventory. Subscription/resource-group containers, generic ARM resources, Service Bus queues/topics, Function App functions, and SQL logical-server databases are included. Other child resources need additional collectors; adding their mapping alone does not make the collector enumerate them. Entra app registrations are included through Microsoft Graph. Enterprise applications/service principals, managed identities, other directory objects and data-plane contents remain outside this release.
 
 See [verification](verification.md) for executed tests and [catalog and icons](catalog.md) for editing mappings. The scripts run on demand and do not automatically save models, commit Git changes, or schedule future runs.

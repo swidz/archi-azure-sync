@@ -2,7 +2,7 @@
   "status": "passed",
   "archi": "5.10.0.202608252016",
   "jArchi": "1.12.0.202604070605",
-  "specializations": 3406,
+  "specializations": 3407,
   "checks": [
     "No specializations created by default",
     "Subscription/resource group/type hierarchy",

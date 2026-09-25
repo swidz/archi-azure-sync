@@ -29,5 +29,14 @@
       "base": "technology-function",
       "icon": "compute/10029-icon-service-Function-Apps.png"
     }
-  ]
+  ],
+  "curatedAdditions": [
+    {
+      "type": "Microsoft.Graph/applications",
+      "base": "node",
+      "icon": "identity/10232-icon-service-App-Registrations.png",
+      "source": "https://learn.microsoft.com/en-us/graph/api/application-list?view=graph-rest-1.0"
+    }
+  ],
+  "curatedTypeCount": 3407
 }

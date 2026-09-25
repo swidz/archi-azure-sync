@@ -4,11 +4,14 @@
     // Relationship subfolders follow the source resource: subscription / group / ARM type.
     var AZURE_ROOT_FOLDER = "Azure";
     var AZURE_USE_SPECIALIZATIONS = false;
+    // Tenant-wide app registrations require Microsoft Graph access in addition to ARM Reader.
+    var AZURE_INCLUDE_ENTRA_APPLICATIONS = true;
 
     var root = String(Java.type("java.nio.file.Paths").get(__DIR__).getParent().toAbsolutePath());
-    ["lib/core.js", "lib/azure-client.js", "lib/azure-cli.js", "lib/azure-cli-java.js", "lib/java-runtime.js", "lib/archi-adapter.js", "lib/app.js", "config/specializations.js"]
+    ["lib/core.js", "lib/azure-client.js", "lib/entra-applications.js", "lib/azure-cli.js", "lib/azure-cli-java.js", "lib/java-runtime.js", "lib/archi-adapter.js", "lib/app.js", "config/specializations.js"]
         .forEach(function (file) { load(root + "/" + file); });
     AzureApp.run("sync", root, AZURE_SPECIALIZATIONS, {
-        rootFolderName: AZURE_ROOT_FOLDER, useSpecializations: AZURE_USE_SPECIALIZATIONS
+        rootFolderName: AZURE_ROOT_FOLDER, useSpecializations: AZURE_USE_SPECIALIZATIONS,
+        includeEntraApplications: AZURE_INCLUDE_ENTRA_APPLICATIONS
     });
 }());

@@ -8,7 +8,7 @@ Reviewed 2026-09-25. This is a jArchi JavaScript package, not an Archi modificat
 | --- | --- |
 | Azure SDK for Java: azure-resourcemanager-resources + azure-identity | Supported Microsoft libraries for inventory and device credentials. GraalVM jArchi supports Java.addToClasspath() for external JARs. Packaging transitive dependencies and checking compatibility with Eclipse adds deployment work. |
 | MSAL4J | Supported authentication alternative for a future separately packaged Java helper. Microsoft recommends supported authentication libraries where feasible. |
-| Azure CLI | **Implemented as an optional authentication method.** jArchi invokes the local CLI for an existing interactive user session and ARM token; no custom app registration is needed. CLI 2.54+ is an optional dependency and owns its local authentication cache. |
+| Azure CLI | **Implemented as an optional authentication method.** jArchi invokes the local CLI for an existing interactive user session and separate ARM/Graph tokens; no custom app registration is needed. CLI 2.54+ is an optional dependency and owns its local authentication cache. |
 | Python / Node helper | Not required. Inventory and model reconciliation remain inside jArchi. |
 | Java standard HTTPS library + documented Azure REST | **Implemented for inventory and direct device sign-in.** Already in Archi's runtime. Selecting Azure CLI additionally uses a bounded local subprocess for authentication. |
 
@@ -16,6 +16,7 @@ The adapter uses java.net.HttpURLConnection through Java.type. Protocol logic, s
 
 - lib/core.js — identity, scope, mappings, properties and change planning.
 - lib/azure-client.js — device authorization, inventory, pagination/retries, discovery and deletion verification.
+- lib/entra-applications.js — projected Microsoft Graph application collection, validated pagination, individual missing-object checks and isolated tenant-scoped planning.
 - lib/java-runtime.js — Java HTTPS and file operations.
 - lib/azure-cli.js — CLI session/token validation and safe command construction.
 - lib/azure-cli-java.js — cross-platform CLI discovery and bounded subprocess execution; stdout stays in memory and stderr is discarded.
@@ -34,6 +35,8 @@ Relationships have their own managed root under Archi's Relationships category, 
 Specializations default off. Scoped assignments owned by this script are detached, but profile definitions and unowned assignments are retained. Sync never prepares or loads icon files and never changes diagram custom images, image sources, image positions or text placement. Even opt-in Sync profile creation is metadata-only: new profiles have no images, and existing profile images are retained. The separate guarded profile manager can still install profile icons.
 
 The optional offline Apply Azure Appearance utility owns diagram formatting. It finds existing managed Azure occurrences through objectRefs(), imports custom images and applies its own image/text variables (Top Center and Bottom Center by default). It never contacts Azure or updates sync timestamps. Bundled icons have a maximum dimension of 48 pixels. Existing shape bounds and links are preserved. Previously applied custom images are retained by Sync, including after users decide to stop running the utility.
+
+Entra app registrations use Node and a separate tenant/Object-ID identity. ARM validation ignores the explicit Microsoft.Graph/applications type; Graph validation does not accept ARM identities. App collection is enabled by the main/export script flag and uses a separate Graph token acquired through the chosen authentication method. ARM and Graph collection/validation finish before a combined plan is applied. Disabling Graph leaves existing apps unchanged. App Nodes live under Azure / Entra ID [tenant GUID] / App registrations and have no invented subscription/group links.
 
 ## Explicit containment relationships
 
@@ -58,6 +61,8 @@ The older overlay is historical context. It is not a dependency and no old plugi
 Real-runtime tests verify managed folders, relocation, custom images, Top Center placement, optional profiles, save/reload and relationship preservation. Model traversal normalizes diagram instances to underlying concepts, avoiding duplicate inventory entries when elements appear in views. objectRefs() identifies visual occurrences; .concept alone cannot distinguish a concept proxy from a diagram object.
 
 The child API versions are pinned to the documented control-plane contracts. Individual child absence checks use those versions without depending on provider type-discovery coverage. A child collection can paginate only within its exact collection path. Child payloads are projected onto resource identity fields, excluding function files, config, invocation URLs and other payload content.
+
+See [Entra application design and API contracts](entra-applications.md) for projected fields, consent, scope and export format.
 
 ## Sources
 
