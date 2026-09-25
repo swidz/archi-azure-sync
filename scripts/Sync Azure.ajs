@@ -1,6 +1,7 @@
 (function () {
     // User settings. Never put credentials here.
     // Used under both Technology & Physical and Relationships.
+    // Relationship subfolders follow the source resource: subscription / group / ARM type.
     var AZURE_ROOT_FOLDER = "Azure";
     var AZURE_USE_SPECIALIZATIONS = false;
 

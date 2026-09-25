@@ -41,6 +41,7 @@
     "Valid composition direction and subscription scope",
     "Valid composition direction and subscription scope",
     "Repeated sync reuses relationship IDs without duplicates",
+    "Relationship hierarchy follows source across subscriptions, including a real Other group",
     "Relationship folder migration respects selected subscription scope",
     "Deleted resource soft-deletes its owned composition",
     "Repeated missing run retains relationship deletion date",
