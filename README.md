@@ -1,32 +1,45 @@
 # Azure resources for Archi
 
-Synchronize Azure Resource Manager (ARM) inventory into an **existing, selected Archi model** using jArchi. The scripts run inside Archi on Windows, Linux and macOS. Choose direct device sign-in with an app registration, or Azure CLI sign-in without your own app registration. The CLI option needs Azure CLI 2.54+; the direct option needs no additional runtime. Neither needs Node.js, Python, extra JARs or a client secret.
+Synchronize Azure Resource Manager inventory into an existing, selected Archi model using jArchi. **Run scripts/Sync Azure.ajs for everyday use.** The scripts in scripts/utils are optional inspection and maintenance tools.
 
-**Default mapping: every Azure resource type becomes a Technology-layer Node**, with a native Archi specialization. The editable catalog contains **3,406 resource types across 286 namespaces** from Microsoft's public Bicep schema index. The supplied V24 archive contributes **714 PNG icons**. This is a dated catalog snapshot; a discovery script also lists types advertised by your subscriptions.
+**[User manual: installation from GitHub, first run, and subsequent runs](docs/user-manual.md)** · [Azure connection options](docs/authentication.md)
+
+Resources default to ordinary Technology-layer **Nodes**, organized under **Azure → Subscription → Resource group (or Other) → Object type**. Existing managed elements are moved into this hierarchy on the next applied sync. Their IDs, relationships and diagram layout are preserved.
+
+**Specializations are off by default.** Azure icons are assigned as custom images to existing diagram occurrences, at **Top Center**. After dragging Nodes into a new view, run Sync again to assign the icons. Archi stores custom images on diagram occurrences, so no background listener or automatic new-view formatting is implied.
 
 ## Quick start
 
-1. Install **Archi 5.8+ / Java 21 and jArchi 1.12+**, using the GraalVM JavaScript engine. Integration-tested here on Archi 5.10 and jArchi 1.12 on Windows.
-2. Keep the whole repository together. Point **Preferences → Scripting → Scripts folder** to this repository's **scripts** directory, or link the .ajs files in Scripts Manager **at their original locations**. Do not copy just the entry points: lib, config and assets must remain alongside scripts.
-3. Choose a connection method using [Connecting to Azure](docs/authentication.md): sign in through an installed Azure CLI using **az login**, or configure an Entra public-client app for direct device sign-in. Both methods need your tenant/subscription IDs and a user with subscription-wide read access.
-4. Open/select your architecture model and run **Sync Azure.ajs**.
-5. Select **Azure CLI (no own app registration)** or **Device sign-in (app registration)**. CLI uses your existing terminal sign-in and does not ask for a client ID. Device sign-in asks for a client ID and displays a Microsoft URL/code for browser authentication and MFA.
-6. Review the create/update/restore/delete counts and apply. Review and save/commit the model using your usual Archi collaboration workflow.
+1. From this GitHub repository choose **Code → Download ZIP** and extract the whole package, or clone the HTTPS URL from Code.
+2. Install **Archi 5.8+ / Java 21 and jArchi 1.12+**, using the GraalVM JavaScript engine. No Node.js, Python or extra JARs are needed for normal use.
+3. Put the complete package in your existing jArchi Scripts folder, or point **Preferences → Scripting → Scripts folder** at this package's scripts directory. Keep lib, config and assets beside scripts. See the [manual](docs/user-manual.md#3-make-the-scripts-visible) for links and other installation options.
+4. [Connect to Azure](docs/authentication.md): either run **az login** using Azure CLI 2.54+ and select **Azure CLI (no own app registration)**, or choose direct device sign-in using your public-client app. Both methods support user sign-in/MFA without a client secret in the model.
+5. Select a test model, run **Sync Azure.ajs**, enter tenant/subscription IDs, review the preview and apply. No utility script is required first.
+6. Review, save and commit the model using your usual workflow. Run Sync again after placing elements in a view to apply their icons.
 
-All selected subscriptions in one run must belong to the specified tenant. Run again for another tenant. Other tenants and unselected subscriptions are untouched.
+All selected subscriptions in one run must belong to the specified tenant. Unselected subscriptions and other tenants' elements remain untouched. Azure public cloud is supported.
+
+## Script settings
+
+At the top of scripts/Sync Azure.ajs:
+
+~~~javascript
+var AZURE_ROOT_FOLDER = "Azure";
+var AZURE_USE_SPECIALIZATIONS = false;
+~~~
+
+Subscription folder labels include display name and GUID. Full ARM types form single folder labels. Missing resource groups use Other; a real group named Other is labelled Other (resource group). Changing the root name renames the managed root. Empty folders are retained.
 
 ## Scripts
 
 | Entry point | Purpose |
 | --- | --- |
-| scripts/Sync Azure.ajs | Collect all pages, verify missing resources, preview changes, then create/update/soft-delete elements. Creates only specializations needed by the inventory. |
-| scripts/Manage Azure Specializations.ajs | Install/update uncommented catalog entries and remove previously managed entries no longer enabled. No Azure sign-in. |
-| scripts/Discover Azure Resource Types.ajs | Read provider metadata and export an editable list of advertised types. Review/merge it into the main catalog. |
-| scripts/Export Azure Inventory.ajs | Export inventory to JSON without modifying the model. Contains infrastructure metadata, no credentials or tokens. |
+| scripts/Sync Azure.ajs | Collect and verify inventory, preview changes, create/update/soft-delete elements, organize folders and format existing diagram icons. |
+| scripts/utils/Export Azure Inventory.ajs | Save actual inventory as JSON without modifying the model. |
+| scripts/utils/Discover Azure Resource Types.ajs | Export provider-advertised types for manual catalog review; does not merge them automatically. |
+| scripts/utils/Manage Azure Specializations.ajs | Optional offline bulk profile maintenance, explicitly guarded by its own false-by-default flag. Not needed for synchronization. |
 
-Comment out a whole row in **config/specializations.js**, then rerun **Manage Azure Specializations** to remove that profile. Elements and relationships survive. Commenting out a profile does **not** filter inventory. New resources with no enabled mapping use an ordinary Node; existing resources retain their base type.
-
-Common services have specific icons; others use a provider-family or generic resource icon. Every icon path is editable. See [catalog and icons](docs/catalog.md).
+config/specializations.js contains **3,406 editable type/base/icon mappings** even when profile creation is disabled. All shipped base types are Node; unmapped types use Node and the generic Azure icon. The V24 archive contributes **714 PNG icons**, reused across resource types. Commenting out a mapping does not filter inventory. See [catalog and icons](docs/catalog.md).
 
 ## Element properties
 
@@ -64,7 +77,7 @@ The script stores only non-secret configuration and synchronization metadata:
 
 An optional Azure-UserId property may document an expected account but is not used to authenticate; the browser determines the signed-in account. There is no password/secret prompt or token storage in the model. Direct device sign-in has no persistent token cache and requests no offline_access scope. The CLI option reuses Azure CLI's own local authentication cache, which must stay outside your Git repositories. Both methods hold the current token in memory during the run and clear the retained reference afterward. JVM memory cannot guarantee immediate secure erasure.
 
-The **script repository** is separate from the **model repository**. Scripts do not automatically save, commit or publish models. Native specialization/image save/reload is tested; check your team's coArchi/coArchi2 round trip with its installed version.
+The **script repository** is separate from the **model repository**. Scripts do not automatically save, commit or publish models. Custom image, folder and optional specialization save/reload are tested; check your team's coArchi/coArchi2 round trip with its installed version.
 
 ## Reconciliation and failures
 
@@ -76,7 +89,7 @@ The **script repository** is separate from the **model repository**. Scripts do 
 - A move/rename that changes the ARM ID creates a new identity and soft-deletes the old identity after verification.
 - Descriptions, unrelated properties, relationships and diagram layouts survive. Azure-owned names/properties refresh.
 - Base-type changes stop with an explanation; change the type deliberately in Archi first.
-- Only profiles in the script's ownership registry can be removed. Unowned profile-name collisions are rejected.
+- Specializations are opt-in. With the flag off, scoped script-owned assignments are detached, while definitions and unowned assignments remain. The guarded utility can explicitly remove owned profiles.
 - Network/authentication/validation failures occur before mutation. An exceptional failure during image import or application can leave partial in-memory changes; use **Edit → Undo** before retrying. The script uses public jArchi undoable APIs.
 
 To **explicitly adopt** an existing manually maintained Azure element, set its exact Azure-TenantId, Azure-SubscriptionId, Azure-ObjectId, Azure-ObjectType, original CreatedDate/CreatedTime, and Azure-SyncManagedBy=archi-azure-sync/v1. Ensure only one concept has the identity. Otherwise identity collisions are rejected.

@@ -1,6 +1,6 @@
 (function () {
-    var root = String(Java.type("java.nio.file.Paths").get(__DIR__).getParent().toAbsolutePath());
+    var root = String(Java.type("java.nio.file.Paths").get(__DIR__).getParent().getParent().toAbsolutePath());
     ["lib/core.js", "lib/azure-client.js", "lib/azure-cli.js", "lib/azure-cli-java.js", "lib/java-runtime.js", "lib/archi-adapter.js", "lib/app.js", "config/specializations.js"]
         .forEach(function (file) { load(root + "/" + file); });
-    AzureApp.run("export", root, AZURE_SPECIALIZATIONS);
+    AzureApp.run("catalog", root, AZURE_SPECIALIZATIONS);
 }());

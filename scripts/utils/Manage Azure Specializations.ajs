@@ -1,0 +1,8 @@
+(function () {
+    // Advanced opt-in only; this utility is not required for synchronization.
+    var AZURE_USE_SPECIALIZATIONS = false;
+    var root = String(Java.type("java.nio.file.Paths").get(__DIR__).getParent().getParent().toAbsolutePath());
+    ["lib/core.js", "lib/azure-client.js", "lib/azure-cli.js", "lib/azure-cli-java.js", "lib/java-runtime.js", "lib/archi-adapter.js", "lib/app.js", "config/specializations.js"]
+        .forEach(function (file) { load(root + "/" + file); });
+    AzureApp.run("specializations", root, AZURE_SPECIALIZATIONS, {useSpecializations: AZURE_USE_SPECIALIZATIONS});
+}());

@@ -1,5 +1,7 @@
 # Catalog and icons
 
+Specialization creation is **off by default**. The catalog still maps Azure types to base types and custom diagram icons. Start with [the user manual](user-manual.md); scripts/Sync Azure.ajs is the normal entry point.
+
 ## Edit mappings
 
 ~~~javascript
@@ -11,7 +13,7 @@ var AZURE_SPECIALIZATIONS = [
 
 Rows contain the ARM type, Archi Technology base type and relative image path under assets/icons. Use exact paths from assets/icon-index.json; Linux paths are case-sensitive.
 
-Comment out whole rows to disable profiles. Rerun **Manage Azure Specializations** to create/update enabled entries and remove disabled entries previously recorded as owned. Elements/relationships survive. Commenting a type does not filter inventory. Sync alone does not prune obsolete profiles.
+Comment out whole rows to disable their mapping; inventory still imports the type, using Node and the generic icon for new unmapped elements. Native profiles are an advanced opt-in: set AZURE_USE_SPECIALIZATIONS=true in the main script to use them during sync. The optional scripts/utils/Manage Azure Specializations.ajs has its own false-by-default guard; enable it explicitly to reconcile all catalog profiles. Removing profiles preserves elements/relationships. Sync alone does not prune profile definitions.
 
 Every supplied row uses Node. Technology-layer alternatives include system-software, device, communication-network, technology-service and artifact. Existing concept types are not silently replaced; migrate them in Archi before synchronizing.
 
@@ -45,7 +47,7 @@ Mapping defaults:
 
 These defaults do not claim a unique service icon for every type. Edit any third-column path; all 714 assets are available even when not assigned by default.
 
-The script uses model.createImage() to embed image bytes, model.createSpecialization() to create native profiles, and element.specialization to apply them. An existing diagram object's custom image may override its specialization image; choose the specialization image source in Archi. Once saved, icons do not depend on the original filesystem path.
+By default the script uses model.createImage() and assigns custom images to existing diagram occurrences, with imagePosition set to Top Center. After adding an occurrence to a new view, rerun Sync to apply its image. When explicitly enabled, native profiles use model.createSpecialization() and element.specialization; existing mapped occurrences switch to the specialization image source. Sync reapplies Azure images/position on every scoped occurrence. Once saved, embedded icons do not depend on the original filesystem path.
 
 Maintainers can recreate PNGs with a JDK and JSVG 2.1.0, available in Archi 5.10's plugins:
 

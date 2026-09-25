@@ -78,3 +78,19 @@ test("mappings reject duplicates, nontechnology bases and path traversal",()=>{
     assert.throws(()=>C.mappings([[H.raw.type,"application-component"]]),/Technology/);
     assert.throws(()=>C.mappings([[H.raw.type,"node","../secret"]]),/relative path/);
 });
+
+test("specialization planning defaults off while retaining the icon mapping",()=>{
+    const map=C.mappings([[H.raw.type,"node","compute/icon.png"]]);
+    const op=C.plan([],H.snapshot(),map).operations[0];
+    assert.equal(op.specialization,null);assert.equal(op.icon,"compute/icon.png");
+    assert.equal(C.plan([],H.snapshot(),map,{useSpecializations:true}).operations[0].specialization,"Azure: "+H.raw.type);
+});
+test("unknown and blank icon mappings use the generic image",()=>{
+    assert.equal(C.plan([],H.snapshot(),{}).operations[0].icon,C.DEFAULT_ICON);
+    assert.equal(C.plan([],H.snapshot(),H.mapping).operations[0].icon,C.DEFAULT_ICON);
+});
+test("folder and specialization settings are validated before mutation",()=>{
+    assert.throws(()=>C.settings({rootFolderName:"  "}),/folder name/);
+    assert.throws(()=>C.settings({useSpecializations:"false"}),/true or false/);
+    assert.equal(C.settings({rootFolderName:" Azure estate "}).rootFolderName,"Azure estate");
+});

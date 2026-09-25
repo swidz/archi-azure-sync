@@ -1,7 +1,7 @@
 // Azure ARM resource types from Microsoft's Bicep index (API versions collapsed).
-// Comment out a WHOLE row to disable that specialization. Sync still imports the resource as Node.
+// Base/icon mappings apply even with specializations OFF (default). Comment out a WHOLE row to disable its mapping.
 // Columns: [ARM type, Archi Technology base type, relative PNG icon path].
-// Re-run Manage Azure Specializations.ajs to reconcile additions/removals. See docs/catalog.md.
+// Sync applies custom icons to existing diagram occurrences. Profiles are opt-in; see docs/user-manual.md.
 var AZURE_SPECIALIZATIONS = [
     ["ArizeAi.ObservabilityEval/organizations","node","general/10001-icon-service-All-Resources.png"],
     ["Astronomer.Astro/organizations","node","general/10001-icon-service-All-Resources.png"],

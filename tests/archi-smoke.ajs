@@ -1,64 +1,78 @@
-/* Run only against a fresh test model created here. No Azure calls; no user model is opened. */
+/* Uses disposable models only. No Azure credentials, network calls or user models. */
 (function () {
     var Paths = Java.type("java.nio.file.Paths");
     var root = String(Paths.get(__DIR__).getParent().toAbsolutePath());
-    ["lib/core.js", "lib/java-runtime.js", "lib/archi-adapter.js", "lib/azure-client.js", "config/specializations.js"]
-        .forEach(function (f) { load(root + "/" + f); });
-    var C = AzureCore;
-    var m = $.model.create("Azure synchronization smoke test");
-    m.setAsCurrent();
-    var tenant = "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa", sub = "11111111-1111-1111-1111-111111111111";
-    var raw = {id: "/subscriptions/" + sub + "/resourceGroups/demo/providers/Microsoft.Compute/virtualMachines/vm-smoke",
-        name: "vm-smoke", type: "Microsoft.Compute/virtualMachines"};
-    var resource = C.normalize(raw, {subscriptionId:sub, displayName:"Test"}, tenant);
-    var snapshot = {tenantId:tenant,subscriptionIds:[sub],completedSubscriptions:[sub],resources:[resource],
-        confirmedMissing:[],collectedAt:"2026-09-25T10:20:30Z"};
-    var mapping = C.mappings(AZURE_SPECIALIZATIONS);
-    var vmMap = {}; vmMap[C.lower(raw.type)] = mapping[C.lower(raw.type)];
-    var profiles = AzureArchi.prepareProfiles(m, vmMap, root, true);
-    AzureArchi.applyProfiles(m, profiles);
-    AzureArchi.apply(m, C.plan([], snapshot, vmMap));
-    var elements = AzureArchi.readElements(m);
-    C.assert(elements.length === 1, "One element must be created");
-    C.assert(elements[0].properties.CreatedTime === "10:20:30Z", "UTC timestamp must round-trip");
-    var element = $(m).find("element").first();
-    C.assert(String(element.specialization) === vmMap[C.lower(raw.type)].name, "Specialization assigned");
-    C.assert(m.findSpecialization(String(element.specialization), "node").image !== null, "Icon assigned");
-    var peer = m.createElement("node", "Unmanaged peer");
-    var rel = m.createRelationship("association-relationship", "Preserve me", element, peer);
-    var archiId = String(element.id), relId = String(rel.id);
-    snapshot.collectedAt = "2026-09-26T11:22:33Z";
-    AzureArchi.apply(m, C.plan(elements, snapshot, vmMap));
-    C.assert(AzureArchi.readElements(m)[0].id === archiId, "Repeat sync must preserve element ID");
-    snapshot.resources = [];
-    snapshot.confirmedMissing = [C.identity(tenant, raw.id)];
-    AzureArchi.apply(m, C.plan(AzureArchi.readElements(m), snapshot, vmMap));
-    C.assert(String(element.prop("IsDeleted")) === "yes", "Soft deletion");
-    snapshot.resources = [resource]; snapshot.collectedAt = "2026-09-27T01:02:03Z";
-    AzureArchi.apply(m, C.plan(AzureArchi.readElements(m), snapshot, vmMap));
-    C.assert(String(element.prop("DeletedDate")) === "", "Restoration clears deletion");
-    var view = m.createArchimateView("Smoke test");
-    view.add(element, 50, 50, 240, 100);
-    var dir = AzureJava.resolve(root, "work");
-    Java.type("java.nio.file.Files").createDirectories(Paths.get(dir));
-    m.save(dir + "/smoke.archimate");
-    var loaded = $.model.load(dir + "/smoke.archimate");
-    C.assert(AzureArchi.readElements(loaded).length === 1, "Saved properties reload");
-    C.assert(loaded.findSpecialization(vmMap[C.lower(raw.type)].name, "node").image !== null, "Embedded icon reloads");
-    // Removing a script-owned specialization must not remove concepts/relationships.
-    AzureArchi.applyProfiles(m, AzureArchi.prepareProfiles(m, {}, root, true));
-    C.assert(AzureArchi.readElements(m).length === 1 && peer.name === "Unmanaged peer", "Profile removal preserves elements");
-    C.assert(String($(m).find("relationship").first().id) === relId, "Profile removal preserves relationships");
-    C.assert(!element.specialization, "Specialization reference cleared");
-    // Install the full catalog twice to verify scale, idempotence and all image references.
-    AzureArchi.applyProfiles(m, AzureArchi.prepareProfiles(m, mapping, root, true));
-    AzureArchi.applyProfiles(m, AzureArchi.prepareProfiles(m, mapping, root, true));
-    C.assert(m.specializations.length === Object.keys(mapping).length, "Full catalog idempotence");
-    m.save(dir + "/catalog-smoke.archimate");
-    AzureJava.write(dir + "/archi-smoke-result.json", JSON.stringify({
-        status:"passed", archi:String($.process.release.archiVersion), jArchi:String($.process.release.jArchiVersion),
-        specializations:Object.keys(mapping).length, checks:["create","repeat","soft-delete","restore","UTC properties",
-        "embedded icon save/reload","preserve relationships","remove profile","full catalog repeated install"]
-    }, null, 2));
+    ["lib/core.js", "lib/java-runtime.js", "lib/archi-adapter.js", "config/specializations.js"].forEach(function (f) { load(root + "/" + f); });
+    var C = AzureCore, checks = [];
+    function ok(value, message) { C.assert(value, message); checks.push(message); }
+    var m = $.model.create("Azure folder and image smoke test"); m.setAsCurrent();
+    var tenant="aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa",sub="11111111-1111-1111-1111-111111111111",sub2="22222222-2222-2222-2222-222222222222";
+    var mapping=C.mappings(AZURE_SPECIALIZATIONS);
+    function resource(subscription, group, type, name) {
+        var id="/subscriptions/"+subscription+(group?"/resourceGroups/"+group:"")+"/providers/"+type+"/"+name;
+        return C.normalize({id:id,type:type,name:name},{subscriptionId:subscription,displayName:"Test"},tenant);
+    }
+    var vm=resource(sub,"demo","Microsoft.Compute/virtualMachines","vm-smoke");
+    var snapshot={tenantId:tenant,subscriptionIds:[sub],completedSubscriptions:[sub],resources:[vm],confirmedMissing:[],collectedAt:"2026-09-25T10:20:30Z"};
+    function sync(options) {
+        var p=C.plan(AzureArchi.readElements(m),snapshot,mapping,options);
+        if(options && options.useSpecializations) {
+            var used={}; p.operations.forEach(function(op){if(op.specialization)used[C.lower(op.properties["Azure-ObjectType"])]=mapping[C.lower(op.properties["Azure-ObjectType"])];});
+            AzureArchi.applyProfiles(m,AzureArchi.prepareProfiles(m,used,root,false));
+        }
+        AzureArchi.apply(m,p,options,AzureArchi.prepareImages(p,root)); return p;
+    }
+    function concept(id) { var result; $(m).find("element").each(function(e){e=e.concept||e;if(String(e.prop("Azure-ObjectId"))===id)result=e;});return result; }
+    function ancestry(e) { var names=[],p=$(e).parent().first();while(p && String(p.type)==="folder"){names.unshift(String(p.name));p=$(p).parent().first();}return names; }
+    sync();
+    var element=concept(vm.id),id=String(element.id),folderId=String($(element).parent().first().id);
+    ok(m.specializations.length===0 && !element.specialization,"No specializations created by default");
+    ok(ancestry(element).slice(1).join("|")==="Azure|Test ["+sub+"]|demo|Microsoft.Compute/virtualMachines","Subscription/resource group/type hierarchy");
+    ok(String(element.prop("CreatedTime"))==="10:20:30Z","UTC creation timestamps");
+    var peer=m.createElement("node","Unmanaged peer"),rel=m.createRelationship("association-relationship","Preserve",element,peer),relId=String(rel.id);
+    var view=m.createArchimateView("Images"),view2=m.createArchimateView("Second occurrence");
+    var a=view.add(element,50,50,240,100),b=view2.add(element,20,30,220,90),untouched=view.add(peer,350,50,120,80);
+    untouched.imagePosition=8;
+    var foldersBefore=$(m).find("folder").size(); sync();
+    ok(AzureArchi.readElements(m).length===1 && String(element.id)===id,"Repeat sync preserves identity across views");
+    ok($(m).find("folder").size()===foldersBefore && String($(element).parent().first().id)===folderId,"Repeat sync reuses folder IDs");
+    ok(a.image!==null && b.image!==null && a.imageSource===1 && b.imageSource===1,"Custom images on every diagram occurrence");
+    ok(a.imagePosition===1 && b.imagePosition===1,"Top Center image placement");
+    ok(a.bounds.x===50 && a.bounds.width===240 && b.bounds.y===30 && untouched.imagePosition===8,"Diagram bounds and unmanaged visuals preserved");
+    snapshot.resources=[];snapshot.confirmedMissing=[C.identity(tenant,vm.id)];sync();
+    ok(String(element.prop("IsDeleted"))==="yes","Soft deletion keeps folder and concept");
+    snapshot.resources=[vm];snapshot.collectedAt="2026-09-26T11:22:33Z";sync();
+    ok(String(element.prop("DeletedDate"))==="" && String(element.prop("CreatedTime"))==="10:20:30Z","Restoration preserves creation and clears deletion");
+    sync({useSpecializations:true});
+    ok(!!element.specialization && m.specializations.length===1 && a.imageSource===0 && a.imagePosition===1,"Opt-in specialization and Top Center");
+    sync();
+    ok(!element.specialization && m.specializations.length===1 && a.imageSource===1,"Turning off detaches managed assignment without deleting definitions");
+    vm.subscriptionName="Renamed subscription";sync({rootFolderName:"Cloud estate"});
+    ok(ancestry(element)[1]==="Cloud estate" && ancestry(element)[2]==="Renamed subscription ["+sub+"]" && String($(element).parent().first().id)===folderId,"Root/subscription rename retains folder identity");
+    var noGroup=resource(sub,"","Microsoft.Resources/deployments","subscription-deployment"),realOther=resource(sub,"Other","Microsoft.Compute/virtualMachines","other-vm"),other=resource(sub2,"demo","Microsoft.Compute/virtualMachines","other-sub-vm");
+    snapshot.resources=[vm,noGroup,realOther,other]; snapshot.subscriptionIds=[sub,sub2];snapshot.completedSubscriptions=[sub,sub2];sync();
+    ok(ancestry(concept(noGroup.id))[3]==="Other","No resource group uses Other");
+    ok(ancestry(concept(realOther.id))[3]==="Other (resource group)","Real Other resource group remains distinct");
+    ok(ancestry(concept(other.id))[2]!==ancestry(element)[2],"Subscription IDs prevent display-name collisions");
+    var otherElement=concept(other.id),otherVisual=view.add(otherElement,300,250,200,90);otherVisual.imagePosition=8;
+    var oldSync=String(otherElement.prop("LastSyncTime")); snapshot.resources=[vm,noGroup,realOther];snapshot.subscriptionIds=[sub];snapshot.completedSubscriptions=[sub];snapshot.collectedAt="2026-09-27T01:02:03Z";sync();
+    ok(otherVisual.imagePosition===8 && String(otherElement.prop("LastSyncTime"))===oldSync,"Unselected subscription is untouched");
+    // Migrate a formerly flat managed concept back into the hierarchy, preserving references.
+    var layer=$(element).parent().first();while(String($(layer).parent().first().type)==="folder")layer=$(layer).parent().first();
+    layer.name="Translated layer";layer.add(element);sync();
+    ok(String($(element).parent().first().id)===folderId && String(element.id)===id,"Flat-element migration works with translated layer name");
+    ok(String(rel.id)===relId && a.concept.id===element.id,"Relationships and diagram references survive migration");
+    var dir=AzureJava.resolve(root,"work");Java.type("java.nio.file.Files").createDirectories(Paths.get(dir));
+    m.save(dir+"/smoke.archimate");var loaded=$.model.load(dir+"/smoke.archimate");
+    ok(AzureArchi.readElements(loaded).length===4,"Saved folder hierarchy and properties reload");
+    var reloadedImage=false;$(loaded).find("element").each(function(o){if(o.concept && String(o.concept.id)===id)reloadedImage=o.image!==null && o.imageSource===1 && o.imagePosition===1;});
+    ok(reloadedImage,"Embedded custom icon and Top Center persist after reload");
+    AzureArchi.applyProfiles(m,AzureArchi.prepareProfiles(m,{},root,true));
+    ok(AzureArchi.readElements(m).length===4 && String(rel.id)===relId,"Explicit profile removal preserves elements and relationships");
+    // Utility remains usable at full catalog scale when explicitly enabled.
+    AzureArchi.applyProfiles(m,AzureArchi.prepareProfiles(m,mapping,root,true));
+    AzureArchi.applyProfiles(m,AzureArchi.prepareProfiles(m,mapping,root,true));
+    ok(m.specializations.length===Object.keys(mapping).length,"Full catalog opt-in installation is idempotent");
+    AzureJava.write(dir+"/archi-smoke-result.json",JSON.stringify({status:"passed",archi:String($.process.release.archiVersion),jArchi:String($.process.release.jArchiVersion),specializations:Object.keys(mapping).length,checks:checks},null,2));
     console.log("ARCHI_AZURE_SMOKE_PASSED");
 }());

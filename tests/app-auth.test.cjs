@@ -1,6 +1,6 @@
 const test=require("node:test"), assert=require("node:assert/strict"), fs=require("node:fs"), vm=require("node:vm");
 const H=require("./helpers.cjs");
-function app(method="azure-cli", overrides={}) {
+function app(method="azure-cli", overrides={}, options, mode="sync", confirm=true) {
     const props={"Azure-ClientId":H.clientId,...overrides}, prompts=[], calls=[], alerts=[];
     const context={
         AzureCore:H.C, console:{log(){}},
@@ -9,7 +9,7 @@ function app(method="azure-cli", overrides={}) {
             promptSelection:(label,choices)=>{calls.push(["choices",...choices]);return method===null?null:
                 choices.find(x=>x.startsWith(method==="azure-cli"?"Azure CLI":"Device"));},
             prompt:(label)=>{prompts.push(label);return /tenant/i.test(label)?H.tenant:/Subscription IDs/.test(label)?H.sub:H.clientId;},
-            confirm:()=>true,alert:s=>alerts.push(s)
+            confirm:()=>confirm,alert:s=>alerts.push(s)
         },
         AzureJava:{io:{}},
         AzureCliJava:{createIo:()=>{calls.push(["cli-process"]);return {};}},
@@ -18,11 +18,11 @@ function app(method="azure-cli", overrides={}) {
             deviceLogin:(io,cfg)=>{calls.push(["device",cfg]);return {accessToken:"fake",expiresAt:9999999999999};},
             create:()=>({inventory:()=>H.snapshot()})
         },
-        AzureArchi:{readElements:()=>[],prepareProfiles:()=>({}),applyProfiles:()=>{},
-            apply:()=>calls.push(["applied"])}
+        AzureArchi:{readElements:()=>[],prepareImages:()=>({}),prepareProfiles:()=>{calls.push(["profiles-planned"]);return {};},applyProfiles:()=>calls.push(["profiles-applied"]),
+            apply:(m,p,o)=>calls.push(["applied",o])}
     };
     vm.runInNewContext(fs.readFileSync(require.resolve("../lib/app.js"),"utf8"),context);
-    context.AzureApp.run("sync","/repo",[]);
+    context.AzureApp.run(mode,"/repo",[],options);
     return {props,prompts,calls,alerts};
 }
 test("selecting CLI skips client ID prompt and preserves device client configuration",()=>{
@@ -43,4 +43,24 @@ test("last successfully applied method is offered first",()=>{
 test("cancelling authentication selection causes no sign-in or model application",()=>{
     const r=app(null);assert.equal(r.prompts.length,0);assert.equal(r.calls.length,1);
     assert.ok(!r.props["Azure-AuthMethod"]);assert.match(r.alerts[0],/Cancelled/);
+});
+
+test("default sync never creates or prepares specializations",()=>{
+    const r=app();assert.ok(r.calls.some(c=>c[0]==="applied"));
+    assert.ok(!r.calls.some(c=>c[0].startsWith("profiles-")));
+    assert.equal(r.calls.find(c=>c[0]==="applied")[1].rootFolderName,"Azure");
+});
+test("specializations remain explicitly opt-in",()=>{
+    const r=app("azure-cli",{}, {useSpecializations:true,rootFolderName:"Cloud"});
+    assert.ok(r.calls.some(c=>c[0]==="profiles-applied"));
+    assert.equal(r.calls.find(c=>c[0]==="applied")[1].rootFolderName,"Cloud");
+});
+test("specialization utility is guarded when disabled",()=>{
+    const r=app("azure-cli",{},undefined,"specializations");
+    assert.equal(r.calls.length,0);assert.match(r.alerts[0],/disabled/);
+});
+test("cancelling preview does not apply folders, icons, configuration or profiles",()=>{
+    const r=app("azure-cli",{},undefined,"sync",false);
+    assert.ok(!r.calls.some(c=>c[0]==="applied"||c[0]==="profiles-applied"));
+    assert.equal(r.props["Azure-AuthMethod"],undefined);
 });

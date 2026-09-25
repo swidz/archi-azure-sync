@@ -1,0 +1,18 @@
+{
+  "status": "passed",
+  "objects": 3128,
+  "subscriptions": 2,
+  "resourceTypes": 95,
+  "foldersIncludingBuiltIn": 634,
+  "specializations": 0,
+  "firstApplyMs": 1825,
+  "repeatWithIconsMs": 718,
+  "checks": [
+    "all inventory objects",
+    "stable concept IDs",
+    "stable folder count",
+    "no specializations",
+    "custom Top Center icon for each inventory type"
+  ],
+  "note": "Offline replay into a disposable in-memory model. No live Azure calls or saved user model."
+}

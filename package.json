@@ -1,8 +1,8 @@
 {
   "name": "archi-azure-sync",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "private": true,
-  "description": "Azure ARM inventory and native specializations for Archi/jArchi",
+  "description": "Organized Azure ARM inventory and icons for Archi/jArchi",
   "scripts": {"test": "node --test tests/*.test.cjs", "check": "node tools/check.cjs"},
   "engines": {"node": ">=20"}
 }
