@@ -4,10 +4,12 @@ Run **scripts/Sync Azure.ajs** as usual. These collectors also run during **util
 
 | Parent → child | Child ARM type | Default Archi type | Relationship |
 | --- | --- | --- | --- |
-| Service Bus namespace → queue | Microsoft.ServiceBus/namespaces/queues | Node | Composition: consists of |
-| Service Bus namespace → topic | Microsoft.ServiceBus/namespaces/topics | Node | Composition: consists of |
-| Function App → function | Microsoft.Web/sites/functions | Technology Function | Assignment: performs |
-| SQL logical server → database | Microsoft.Sql/servers/databases | Node | Serving: serves |
+| Service Bus namespace → queue | Microsoft.ServiceBus/namespaces/queues | Node | Composition |
+| Service Bus namespace → topic | Microsoft.ServiceBus/namespaces/topics | Node | Composition |
+| Function App → function | Microsoft.Web/sites/functions | Technology Function | Assignment |
+| SQL logical server → database | Microsoft.Sql/servers/databases | Node | Serving |
+
+All generated relationship Name fields are blank. Sync also clears old or custom names on existing script-owned links in the selected scope, including SQL serving links, while preserving relationship identity. Matching manual relationships keep their names.
 
 The relationship source is the parent and the target is the child. Existing subscription/resource-group compositions remain. Individual Technology Functions are linked through their Function App rather than by a direct resource-group composition, which Archi does not permit.
 

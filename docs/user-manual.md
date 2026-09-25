@@ -144,10 +144,12 @@ If a desired folder name is already occupied by an unrelated, unowned folder, th
 
 ### Composition relationships
 
-The sync creates ArchiMate **composition** relationships labelled **composed of**, with these directions:
+The sync creates unnamed ArchiMate **composition** relationships, with these directions:
 
 - Subscription Node → each resource group Node in that subscription.
 - Resource group Node → each resource Node belonging to that group, including queues/topics and SQL databases. Individual Technology Functions are linked through their Function App using assignment; Node-to-Technology-Function composition is invalid in Archi.
+
+All synced relationship Name fields are blank. On each applied sync, existing names are cleared from script-owned composition, assignment and serving links in the selected tenant/subscriptions, including SQL server-to-database links, custom labels and soft-deleted links. Their relationship GUIDs, types, source/target references and creation dates remain intact. Manually authored matching links and links outside the selected scope keep their names.
 
 Find generated links under **Relationships → Azure → Source subscription → Source resource group (or Other) → Source object type**. Archi stores relationship concepts in its separate Relationships category. Composition, assignment and serving links all use their source element's hierarchy. The full source ARM type is one folder label, including slashes. Composition links express whole-to-part containment, with the composition diamond at the parent. Each run searches the whole model using the actual **source element GUID and target element GUID**, plus relationship type. Renaming or moving a link does not cause a duplicate; different relationship types between the same endpoints remain distinct. Manual matching relationships retain their labels, properties and folders. Script-owned links are retained with deletion timestamps when either endpoint disappears and restored when both endpoints return. Unselected subscriptions are untouched.
 
@@ -155,7 +157,7 @@ The **Other** folder is not an Azure resource group: it has no synthetic Node or
 
 Owned links from older versions, including the flat Azure folder, move into this source-based hierarchy on the next applied sync for their selected tenant/subscriptions. Their relationship GUIDs, creation timestamps and existing diagram connections are preserved. Azure-SourceElementId and Azure-TargetElementId record the actual Archi endpoint GUIDs; Azure-SourceObjectId and Azure-TargetObjectId continue to record the ARM IDs. The actual relationship endpoints are authoritative; stale cached properties are refreshed. Links outside the selected scope are not moved.
 
-Example relationship folders (arrows in parentheses describe the endpoints):
+Example relationship folders (leaf annotations describe types and endpoints; the relationship Name fields are blank):
 
 ~~~text
 Relationships
@@ -163,16 +165,16 @@ Relationships
     └── Production [subscription-GUID]
         ├── Other
         │   └── Microsoft.Resources/subscriptions
-        │       └── composed of (subscription → resource group)
+        │       └── [Composition: subscription → resource group]
         └── rg-application
             ├── Microsoft.Resources/resourceGroups
-            │   └── composed of (resource group → resource)
+            │   └── [Composition: resource group → resource]
             ├── Microsoft.ServiceBus/namespaces
-            │   └── consists of (namespace → queue or topic)
+            │   └── [Composition: namespace → queue or topic]
             ├── Microsoft.Web/sites
-            │   └── performs (Function App → function)
+            │   └── [Assignment: Function App → function]
             └── Microsoft.Sql/servers
-                └── serves (SQL server → database)
+                └── [Serving: SQL server → database]
 ~~~
 
 The source element supplies the subscription, resource group and object type; the target does not determine placement. Subscription-source links use Other because subscriptions have no resource group. A real group named Other still uses Other (resource group). No extra folder is created for the source element's name or the relationship type. Repeated runs reuse folder identities, including when the subscription display name changes.
@@ -181,9 +183,9 @@ The source element supplies the subscription, resource group and object type; th
 
 | Parent | Imported child | Archi type | Relationship from parent |
 | --- | --- | --- | --- |
-| Service Bus namespace | Queue or topic | Node | Composition, labelled **consists of** |
-| Function App | Individual function | Technology Function | Assignment, labelled **performs** |
-| SQL logical server | Database, including master when returned | Node | Serving, labelled **serves** |
+| Service Bus namespace | Queue or topic | Node | Composition |
+| Function App | Individual function | Technology Function | Assignment |
+| SQL logical server | Database, including master when returned | Node | Serving |
 
 These are collected automatically by Sync and Export Azure Inventory. No additional setup script is required. Existing SQL databases are matched by ARM ID and receive serving relationships without duplicate Nodes. Find children under their existing subscription/resource-group/type folders; Azure-ParentObjectId identifies their parent.
 
@@ -250,6 +252,8 @@ Version 0.6 adds child collectors and service relationships. Preserve any local 
 Version 0.5 makes custom icons entirely optional. If you previously customized image/text positions in Sync Azure.ajs, move those values into Apply Azure Appearance.ajs. Existing custom images are retained, not removed or reformatted by Sync.
 
 Run Sync Azure on a copy of the existing model first. The default next run reorganizes scoped elements and detaches script-owned specialization assignments without adding custom images. It preserves IDs, documentation and diagram layout, reuses existing containment relationships and creates any missing ones. Save/reopen and run again to verify no duplicate concepts or folders before using the updated script for your regular model.
+
+Version 0.9 removes names from synced relationships. Run Sync Azure.ajs and apply for each relevant subscription to clear existing names; no separate cleanup utility is required.
 
 Version 0.8 expands the relationship folder tree to Azure → Source subscription → Source resource group (or Other) → Source object type. Version 0.7 introduced the Azure relationship root and endpoint GUID properties. After updating the complete package, run Sync Azure.ajs normally and apply: existing owned links in the selected scope are relocated automatically without changing their identity. No utility script is needed.
 

@@ -5,6 +5,7 @@
   "checks": [
     "Graal collector expands Service Bus, Functions and SQL without duplicate database",
     "Creates all valid resource-group and service relationships",
+    "New composition, assignment and SQL serving relationships have blank names",
     "Generated relationships are in Relationships / Azure",
     "Every relationship mirrors its source object folder hierarchy",
     "Service relationships are grouped by source type rather than child type",
@@ -17,22 +18,23 @@
     "SQL server serves its database",
     "No diagrams or specializations generated",
     "Repeated sync preserves all relationship IDs",
+    "Repeat sync clears every existing generated label, including SQL serving",
     "Repeated sync preserves relationship hierarchy folder IDs without duplicates",
     "Flat Azure relationships migrate into source hierarchy while preserving identity",
-    "GUID matching reuses a renamed relationship in a legacy folder despite stale cached metadata",
+    "GUID matching reuses the relationship and clears its custom label despite stale cached metadata",
     "Migration to Azure preserves relationship GUID and creation date",
     "Stored endpoint GUIDs refresh from actual endpoints",
     "Relationship root follows configured name without changing folder identity",
     "Translated relationship category is resolved without hardcoded label",
     "Source subscription rename updates relationship labels while retaining folder IDs",
     "Relationship matching includes type and preserves unrelated links",
-    "Deletion soft-deletes owned composition, assignment and serving links",
+    "Deletion soft-deletes owned composition, assignment and serving links and clears their names",
     "Repeated deletion retains relationship deletion timestamps",
     "Child restoration retains concept and relationship identity",
     "Unselected service relationships keep timestamps",
     "Manual serving relationship reused without ownership takeover",
     "Reused manual relationships keep their original folder",
     "Children and mixed relationship types survive save/reload",
-    "Relationship folder and endpoint GUID metadata survive save/reload"
+    "Relationship hierarchy, endpoint GUIDs and blank names survive save/reload"
   ]
 }

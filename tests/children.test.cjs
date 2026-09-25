@@ -80,9 +80,10 @@ test('service relations add namespace composition, Function assignment and SQL s
  const find=(a,b)=>plan.relationships.pairs.filter(r=>r.source===k(a)&&r.target===k(b));
  assert.equal(plan.operations.find(o=>o.properties['Azure-ObjectId']===fn.id).base,'technology-function');
  assert.equal(plan.operations.find(o=>o.properties['Azure-ObjectId']===fn.id).properties['Azure-ParentObjectId'],app.id);
- assert.equal(find(sb,queue)[0].type,'composition-relationship');assert.equal(find(sb,topic)[0].name,'consists of');
+ assert.equal(find(sb,queue)[0].type,'composition-relationship');assert.equal(find(sb,topic)[0].type,'composition-relationship');
  assert.equal(find(app,fn)[0].type,'assignment-relationship');assert.equal(find(sql,db)[0].type,'serving-relationship');
  assert.equal(find(rg,fn).length,0);assert.equal(find(rg,db)[0].type,'composition-relationship');assert.equal(plan.relationships.pairs.length,11);
+ assert.ok(plan.relationships.pairs.every(r=>r.name===''));
 });
 test('Node mapping can use Function composition while a missing parent never gets fabricated',()=>{
  const resources=[app,fn].map(r=>C.normalize(r,H.info,H.tenant)),plan=C.plan([],H.snapshot(resources),{});
