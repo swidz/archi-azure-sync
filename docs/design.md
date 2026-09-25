@@ -19,7 +19,7 @@ The adapter uses java.net.HttpURLConnection through Java.type. Protocol logic, s
 - lib/java-runtime.js — Java HTTPS and file operations.
 - lib/azure-cli.js — CLI session/token validation and safe command construction.
 - lib/azure-cli-java.js — cross-platform CLI discovery and bounded subprocess execution; stdout stays in memory and stderr is discarded.
-- lib/archi-adapter.js — stable managed folder identities, concept relocation, custom diagram icons and optional profile lifecycle.
+- lib/archi-adapter.js — stable managed folder identities, concept relocation, custom diagram icons, explicit ARM containment compositions and optional profile lifecycle.
 - lib/app.js — dialogs, configuration and change preview.
 - config/specializations.js — editable resource-type mapping.
 
@@ -29,7 +29,13 @@ Collection and validation complete before application. This is not a distributed
 
 Each element remains in its built-in Technology/Physical layer, below a configurable managed root, subscription, resource group (or Other), and full ARM type. Folders are keyed by properties rather than their display names. Subscription IDs distinguish identical display names. Renames reuse folder IDs; empty folders are retained and unselected elements are untouched. Unowned folder-name conflicts stop application and can require Undo.
 
-Specializations default off. Scoped assignments owned by this script are detached, but profile definitions and unowned assignments are retained. Custom images belong to diagram occurrences, so newly added occurrences need another sync. Existing bounds and links are preserved while images and their Top Center placement are reapplied. The optional bulk-profile utility is separately guarded and also defaults off.
+Specializations default off. Scoped assignments owned by this script are detached, but profile definitions and unowned assignments are retained. Custom images belong to diagram occurrences. Existing occurrences are styled on the first sync; manually added occurrences can be formatted afterward by the offline Apply Azure Appearance utility, without another Azure connection or timestamp change. Bundled icons have a maximum dimension of 48 pixels. Configurable image and label placements default to Top Center and Bottom Center. Existing bounds and links are preserved. The optional bulk-profile utility is separately guarded and also defaults off.
+
+## Explicit containment relationships
+
+Core planning builds tenant-qualified, case-insensitive parent/child identities from ARM IDs. Subscription Nodes compose resource group Nodes; group Nodes compose their member resources. Subscription-level resources do not acquire a synthetic Other parent. Missing parent Nodes are counted in the preview and skipped.
+
+After all concept operations, the adapter indexes existing composition relationships by source/target concept IDs and adds only missing directed links. Existing manual compositions remain unowned and unchanged. Owned links carry endpoint IDs and lifecycle metadata; confirmed endpoint deletion marks the link deleted, and restoration clears its deletion timestamp without replacing its identity. Updates are restricted to owned endpoints in the selected tenant and subscriptions. Links remain model concepts: production scripts never create views or diagram connections.
 
 ## Coverage
 
@@ -55,6 +61,7 @@ Real-runtime tests verify managed folders, relocation, custom images, Top Center
 - [Azure CLI authentication](https://learn.microsoft.com/en-us/cli/azure/authenticate-azure-cli-interactively)
 - [jArchi external JAR loading](https://github.com/archimatetool/archi-scripting-plugin/wiki/Runtime-Options)
 - [jArchi model/profile API](https://github.com/archimatetool/archi-scripting-plugin/wiki/Model)
+- [jArchi visual-object image and text API](https://github.com/archimatetool/archi-scripting-plugin/wiki/Visual-Objects)
 - [jArchi element/property APIs](https://github.com/archimatetool/archi-scripting-plugin/wiki/All-Objects)
 - [Resources List](https://learn.microsoft.com/en-us/rest/api/resources/resources/list?view=rest-resources-2021-04-01)
 - [Resource groups List](https://learn.microsoft.com/en-us/rest/api/resources/resource-groups/list?view=rest-resources-2021-04-01)

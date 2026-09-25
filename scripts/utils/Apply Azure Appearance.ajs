@@ -1,0 +1,7 @@
+(function () {
+    var root = String(Java.type("java.nio.file.Paths").get(__DIR__).getParent().getParent().toAbsolutePath());
+    ["lib/core.js", "lib/azure-client.js", "lib/azure-cli.js", "lib/azure-cli-java.js", "lib/java-runtime.js", "lib/archi-adapter.js", "lib/app.js", "config/specializations.js"]
+        .forEach(function (file) { load(root + "/" + file); });
+    // Reuses image/text positions saved by the last successful Sync; never contacts Azure.
+    AzureApp.run("appearance", root, AZURE_SPECIALIZATIONS);
+}());

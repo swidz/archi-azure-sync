@@ -33,11 +33,19 @@
     var view=m.createArchimateView("Images"),view2=m.createArchimateView("Second occurrence");
     var a=view.add(element,50,50,240,100),b=view2.add(element,20,30,220,90),untouched=view.add(peer,350,50,120,80);
     untouched.imagePosition=8;
+    var syncBeforeAppearance=String(m.prop("Azure-LastSuccessfulSyncAt"));
+    AzureArchi.applyAppearance(m,AzureArchi.prepareAppearance(m,mapping,root),{});
+    ok(a.image!==null && b.image!==null && a.textPosition===2 && a.textAlignment===2,"Offline utility formats manually placed objects without another sync");
+    ok(String(m.prop("Azure-LastSuccessfulSyncAt"))===syncBeforeAppearance,"Offline appearance preserves synchronization timestamps");
+    var decoded=Java.type("javax.imageio.ImageIO").read(new (Java.type("java.io.File"))(AzureJava.icon(root,mapping[C.lower(vm.type)].icon)));
+    ok(Math.max(decoded.getWidth(),decoded.getHeight())===48,"Bundled icon has half the previous 96 pixel dimensions");
+    AzureArchi.applyAppearance(m,AzureArchi.prepareAppearance(m,mapping,root),{imagePosition:"bottom-right",textPosition:"top-left"});
+    ok(a.imagePosition===8 && a.textPosition===0 && a.textAlignment===1,"Configurable image and text positions");
     var foldersBefore=$(m).find("folder").size(); sync();
     ok(AzureArchi.readElements(m).length===1 && String(element.id)===id,"Repeat sync preserves identity across views");
     ok($(m).find("folder").size()===foldersBefore && String($(element).parent().first().id)===folderId,"Repeat sync reuses folder IDs");
     ok(a.image!==null && b.image!==null && a.imageSource===1 && b.imageSource===1,"Custom images on every diagram occurrence");
-    ok(a.imagePosition===1 && b.imagePosition===1,"Top Center image placement");
+    ok(a.imagePosition===1 && b.imagePosition===1 && a.textPosition===2 && a.textAlignment===2,"Top Center image and Bottom Center label placement");
     ok(a.bounds.x===50 && a.bounds.width===240 && b.bounds.y===30 && untouched.imagePosition===8,"Diagram bounds and unmanaged visuals preserved");
     snapshot.resources=[];snapshot.confirmedMissing=[C.identity(tenant,vm.id)];sync();
     ok(String(element.prop("IsDeleted"))==="yes","Soft deletion keeps folder and concept");
@@ -69,6 +77,35 @@
     ok(reloadedImage,"Embedded custom icon and Top Center persist after reload");
     AzureArchi.applyProfiles(m,AzureArchi.prepareProfiles(m,{},root,true));
     ok(AzureArchi.readElements(m).length===4 && String(rel.id)===relId,"Explicit profile removal preserves elements and relationships");
+    // Real relationship API, lifecycle and scope in a separate disposable model.
+    var rm=$.model.create("Containment smoke test");rm.setAsCurrent();
+    function containers(subscription,groupName) {
+        var info={subscriptionId:subscription,displayName:"Test"};
+        return [C.normalize({id:"/subscriptions/"+subscription,type:"Microsoft.Resources/subscriptions",name:"Test"},info,tenant),
+            C.normalize({id:"/subscriptions/"+subscription+"/resourceGroups/"+groupName,type:"Microsoft.Resources/resourceGroups",name:groupName},info,tenant)];
+    }
+    var first=containers(sub,"demo"),second=containers(sub2,"demo"),r1=resource(sub,"demo","Microsoft.Compute/virtualMachines","first"),r2=resource(sub2,"demo","Microsoft.Compute/virtualMachines","second");
+    var rs={tenantId:tenant,subscriptionIds:[sub,sub2],completedSubscriptions:[sub,sub2],resources:first.concat(second,[r1,r2]),confirmedMissing:[],collectedAt:"2026-09-25T10:20:30Z"};
+    function rSync(){var rp=C.plan(AzureArchi.readElements(rm),rs,mapping);return AzureArchi.apply(rm,rp,{},AzureArchi.prepareImages(rp,root));}
+    function rRels(){var out=[];$(rm).find("relationship").each(function(r){out.push(r);});return out;}
+    var beforeViews=$(rm).find("view").size(),rr=rSync(),relations=rRels(),relationIds=relations.map(function(r){return String(r.id);}).sort().join(",");
+    ok(rr.relationships.created===4 && relations.length===4,"Creates subscription/group and group/resource compositions");
+    ok($(rm).find("view").size()===beforeViews,"Sync creates no diagrams");
+    relations.forEach(function(r){ok(String(r.type)==="composition-relationship" && String(r.name)==="composed of" && String(r.source.prop("Azure-SubscriptionId"))===String(r.target.prop("Azure-SubscriptionId")),"Valid composition direction and subscription scope");});
+    rr=rSync();ok(rr.relationships.created===0 && rRels().map(function(r){return String(r.id);}).sort().join(",")===relationIds,"Repeated sync reuses relationship IDs without duplicates");
+    var ownedLink,unselectedLink;relations.forEach(function(r){if(String(r.target.prop("Azure-ObjectId"))===r1.id)ownedLink=r;if(String(r.target.prop("Azure-ObjectId"))===r2.id)unselectedLink=r;});
+    var savedUnselected=String(unselectedLink.prop("LastSyncDate")),createdDate=String(ownedLink.prop("CreatedDate"));
+    rs.subscriptionIds=[sub];rs.completedSubscriptions=[sub];rs.resources=first;rs.confirmedMissing=[C.identity(tenant,r1.id)];rs.collectedAt="2026-09-26T11:22:33Z";rSync();
+    ok(String(ownedLink.prop("IsDeleted"))==="yes" && String(ownedLink.prop("DeletedDate"))==="2026-09-26","Deleted resource soft-deletes its owned composition");
+    rs.collectedAt="2026-09-27T01:02:03Z";rSync();ok(String(ownedLink.prop("DeletedDate"))==="2026-09-26","Repeated missing run retains relationship deletion date");
+    ok(String(unselectedLink.prop("LastSyncDate"))===savedUnselected && String(unselectedLink.prop("IsDeleted"))==="no","Unselected relationships retain metadata");
+    rs.resources=first.concat([r1]);rs.confirmedMissing=[];rSync();
+    ok(String(ownedLink.prop("IsDeleted"))==="no" && String(ownedLink.prop("DeletedDate"))==="" && String(ownedLink.prop("CreatedDate"))===createdDate,"Restoration reuses composition and clears deletion metadata");
+    var source=ownedLink.source,target=ownedLink.target;ownedLink.delete();var manual=rm.createRelationship("composition-relationship","User label",source,target);manual.prop("UserNote","keep");
+    rr=rSync();ok(rr.relationships.created===0 && rRels().length===4 && String(manual.name)==="User label" && String(manual.prop("UserNote"))==="keep" && !manual.prop("Azure-SyncManagedBy"),"Manual composition is reused without taking ownership");
+    rm.save(dir+"/composition-smoke.archimate");var restored=$.model.load(dir+"/composition-smoke.archimate");
+    ok($(restored).find("relationship").size()===4 && $(restored).find("view").size()===beforeViews,"Relationships persist after reload without generated diagrams");
+    m.setAsCurrent();
     // Utility remains usable at full catalog scale when explicitly enabled.
     AzureArchi.applyProfiles(m,AzureArchi.prepareProfiles(m,mapping,root,true));
     AzureArchi.applyProfiles(m,AzureArchi.prepareProfiles(m,mapping,root,true));

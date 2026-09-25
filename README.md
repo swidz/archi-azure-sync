@@ -6,7 +6,9 @@ Synchronize Azure Resource Manager inventory into an existing, selected Archi mo
 
 Resources default to ordinary Technology-layer **Nodes**, organized under **Azure → Subscription → Resource group (or Other) → Object type**. Existing managed elements are moved into this hierarchy on the next applied sync. Their IDs, relationships and diagram layout are preserved.
 
-**Specializations are off by default.** Azure icons are assigned as custom images to existing diagram occurrences, at **Top Center**. After dragging Nodes into a new view, run Sync again to assign the icons. Archi stores custom images on diagram occurrences, so no background listener or automatic new-view formatting is implied.
+**Specializations are off by default.** Azure icons use custom images at **Top Center**, with names at **Bottom Center**. Bundled images have a maximum dimension of **48 pixels**, half the previous 96. After manually placing Nodes in a view, run **scripts/utils/Apply Azure Appearance.ajs** locally; another Azure sync is unnecessary. Custom images belong to diagram occurrences.
+
+Sync creates **composition relationships named "composed of"** from each subscription to its resource groups and from each resource group to its resources. Repeated runs reuse existing links. **No script generates diagrams or diagram connections.**
 
 ## Quick start
 
@@ -15,7 +17,7 @@ Resources default to ordinary Technology-layer **Nodes**, organized under **Azur
 3. Put the complete package in your existing jArchi Scripts folder, or point **Preferences → Scripting → Scripts folder** at this package's scripts directory. Keep lib, config and assets beside scripts. See the [manual](docs/user-manual.md#3-make-the-scripts-visible) for links and other installation options.
 4. [Connect to Azure](docs/authentication.md): either run **az login** using Azure CLI 2.54+ and select **Azure CLI (no own app registration)**, or choose direct device sign-in using your public-client app. Both methods support user sign-in/MFA without a client secret in the model.
 5. Select a test model, run **Sync Azure.ajs**, enter tenant/subscription IDs, review the preview and apply. No utility script is required first.
-6. Review, save and commit the model using your usual workflow. Run Sync again after placing elements in a view to apply their icons.
+6. Review, save and commit the model using your usual workflow. After manually placing elements in a view, run **utils/Apply Azure Appearance.ajs** for icons and label positioning.
 
 All selected subscriptions in one run must belong to the specified tenant. Unselected subscriptions and other tenants' elements remain untouched. Azure public cloud is supported.
 
@@ -26,15 +28,20 @@ At the top of scripts/Sync Azure.ajs:
 ~~~javascript
 var AZURE_ROOT_FOLDER = "Azure";
 var AZURE_USE_SPECIALIZATIONS = false;
+var AZURE_IMAGE_POSITION = "top-center";
+var AZURE_TEXT_POSITION = "bottom-center";
 ~~~
 
 Subscription folder labels include display name and GUID. Full ARM types form single folder labels. Missing resource groups use Other; a real group named Other is labelled Other (resource group). Changing the root name renames the managed root. Empty folders are retained.
+
+Image and text positions accept top/middle/bottom combined with left/center/right, for example "top-center" or "bottom-right". Image position also accepts "fill", which scales the image to the shape. The local appearance utility uses the positions saved by the last successful Sync.
 
 ## Scripts
 
 | Entry point | Purpose |
 | --- | --- |
-| scripts/Sync Azure.ajs | Collect and verify inventory, preview changes, create/update/soft-delete elements, organize folders and format existing diagram icons. |
+| scripts/Sync Azure.ajs | Collect and verify inventory, preview changes, create/update/soft-delete elements, organize folders, ensure composition relationships and format existing diagram objects. |
+| scripts/utils/Apply Azure Appearance.ajs | Locally apply custom icons and image/name positions to managed Azure objects already placed in views. No Azure connection or sync-timestamp changes. |
 | scripts/utils/Export Azure Inventory.ajs | Save actual inventory as JSON without modifying the model. |
 | scripts/utils/Discover Azure Resource Types.ajs | Export provider-advertised types for manual catalog review; does not merge them automatically. |
 | scripts/utils/Manage Azure Specializations.ajs | Optional offline bulk profile maintenance, explicitly guarded by its own false-by-default flag. Not needed for synchronization. |
@@ -66,6 +73,14 @@ LastSync values advance on every successfully applied run, including unchanged r
 
 Resource groups and subscriptions are also Nodes. A group's resource-group properties refer to itself; a subscription's are empty.
 
+## Composition relationships
+
+The whole is the source and the part is the target: **subscription → resource group → resource**. Nested resources returned by inventory link directly to their resource group. Links are ArchiMate composition relationships in the model, named **composed of**. Add existing relationships to a view manually when needed.
+
+Any existing composition with the same source and target is reused. Manually authored relationships keep their names and properties. Script-owned links carry endpoint ARM IDs, tenant/subscription IDs, ownership and creation/deletion/last-sync timestamps. They are retained and marked deleted when either endpoint is soft-deleted, and restored when both endpoints return. Unselected subscriptions remain untouched.
+
+**Other** is only a folder. Resources without a resource group receive no invented group or group relationship. A missing parent Node is reported in the preview and its link is skipped. No application dependencies or network topology are inferred.
+
 ## Model configuration and Git
 
 The script stores only non-secret configuration and synchronization metadata:
@@ -73,6 +88,7 @@ The script stores only non-secret configuration and synchronization metadata:
 - Azure-AuthMethod — selectable device-code or azure-cli authentication, remembered after successful sync.
 - Azure-TenantId, Azure-ClientId, Azure-SubscriptionIds — next-run defaults; CLI does not require a client ID.
 - Azure-LastSuccessfulSyncAt, Azure-LastSuccessfulSyncSubscriptions — last applied run.
+- Azure-ImagePosition, Azure-TextPosition — last applied placement settings, reused by the offline appearance utility.
 - Azure-SyncSpecializations — ownership registry for managed profiles.
 
 An optional Azure-UserId property may document an expected account but is not used to authenticate; the browser determines the signed-in account. There is no password/secret prompt or token storage in the model. Direct device sign-in has no persistent token cache and requests no offline_access scope. The CLI option reuses Azure CLI's own local authentication cache, which must stay outside your Git repositories. Both methods hold the current token in memory during the run and clear the retained reference afterward. JVM memory cannot guarantee immediate secure erasure.
@@ -98,7 +114,7 @@ To **explicitly adopt** an existing manually maintained Azure element, set its e
 
 This release inventories Azure public cloud's **generic ARM Resources List**, selected resource groups and subscription containers. It follows every page and imports any returned resource type, even if absent from the catalog.
 
-A type catalog does not imply that Azure's generic listing returns every object of that type. Some nested resources, such as subnets and database children, require service-specific list APIs. Entra users/groups, blobs, Kubernetes workloads, SaaS application objects, tenant/management-group scope and sovereign clouds are outside this release. It does not infer relationships or create diagrams. Treat the export as an ARM infrastructure inventory, not a universal Azure CMDB.
+A type catalog does not imply that Azure's generic listing returns every object of that type. Some nested resources, such as subnets and database children, require service-specific list APIs. Entra users/groups, blobs, Kubernetes workloads, SaaS application objects, tenant/management-group scope and sovereign clouds are outside this release. Only subscription/resource-group containment relationships are created; diagrams are never generated. Treat the export as an ARM infrastructure inventory, not a universal Azure CMDB.
 
 Individual missing-resource checks reduce false deletions from incomplete visibility. A provider's authorization-masked 404 still cannot be distinguished with certainty from deletion. Use a stable account with subscription-wide Reader permissions and review deletion counts.
 

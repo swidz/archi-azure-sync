@@ -37,7 +37,7 @@ This writes config/specializations.generated.js for review and updates provenanc
 
 ## Icons
 
-The V24 ZIP contains 714 SVGs. This repository includes PNG rasterizations at a maximum dimension of 96 pixels, preserving aspect ratios and transparent backgrounds. Original designs/names are retained. The ZIP's original terms and FAQ are in assets/terms.
+The V24 ZIP contains 714 SVGs. This repository includes PNG rasterizations at a maximum dimension of 48 pixels (half the previous 96), preserving aspect ratios and transparent backgrounds. Original designs/names are retained. The ZIP's original terms and FAQ are in assets/terms.
 
 Mapping defaults:
 
@@ -47,7 +47,7 @@ Mapping defaults:
 
 These defaults do not claim a unique service icon for every type. Edit any third-column path; all 714 assets are available even when not assigned by default.
 
-By default the script uses model.createImage() and assigns custom images to existing diagram occurrences, with imagePosition set to Top Center. After adding an occurrence to a new view, rerun Sync to apply its image. When explicitly enabled, native profiles use model.createSpecialization() and element.specialization; existing mapped occurrences switch to the specialization image source. Sync reapplies Azure images/position on every scoped occurrence. Once saved, embedded icons do not depend on the original filesystem path.
+By default the script uses model.createImage() and assigns custom images to existing diagram occurrences, with configurable placement (default image Top Center, name Bottom Center). After manually adding an occurrence to a view, run scripts/utils/Apply Azure Appearance.ajs to apply the image locally without another Azure sync. When explicitly enabled, native profiles use model.createSpecialization() and element.specialization; existing mapped occurrences switch to the specialization image source. Sync reapplies Azure images and name placement on every scoped occurrence; the local utility covers all managed Azure occurrences in the selected model. Neither creates diagrams or connections. Once saved, embedded icons do not depend on the original filesystem path.
 
 Maintainers can recreate PNGs with a JDK and JSVG 2.1.0, available in Archi 5.10's plugins:
 

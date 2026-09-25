@@ -18,7 +18,7 @@ function app(method="azure-cli", overrides={}, options, mode="sync", confirm=tru
             deviceLogin:(io,cfg)=>{calls.push(["device",cfg]);return {accessToken:"fake",expiresAt:9999999999999};},
             create:()=>({inventory:()=>H.snapshot()})
         },
-        AzureArchi:{readElements:()=>[],prepareImages:()=>({}),prepareProfiles:()=>{calls.push(["profiles-planned"]);return {};},applyProfiles:()=>calls.push(["profiles-applied"]),
+        AzureArchi:{prepareAppearance:()=>({count:2}),applyAppearance:(m,a,o)=>calls.push(["appearance",o]),readElements:()=>[],prepareImages:()=>({}),prepareProfiles:()=>{calls.push(["profiles-planned"]);return {};},applyProfiles:()=>calls.push(["profiles-applied"]),
             apply:(m,p,o)=>calls.push(["applied",o])}
     };
     vm.runInNewContext(fs.readFileSync(require.resolve("../lib/app.js"),"utf8"),context);
@@ -63,4 +63,15 @@ test("cancelling preview does not apply folders, icons, configuration or profile
     const r=app("azure-cli",{},undefined,"sync",false);
     assert.ok(!r.calls.some(c=>c[0]==="applied"||c[0]==="profiles-applied"));
     assert.equal(r.props["Azure-AuthMethod"],undefined);
+});
+
+test("appearance is offline and preserves synchronization metadata",()=>{
+    const overrides={"Azure-LastSuccessfulSyncAt":"old","Azure-ImagePosition":"bottom-right","Azure-TextPosition":"top-left"};
+    const r=app("azure-cli",overrides,undefined,"appearance");
+    assert.equal(r.prompts.length,0);assert.equal(r.calls.length,1);assert.equal(r.calls[0][0],"appearance");
+    assert.equal(r.calls[0][1].imagePositionValue,8);assert.equal(r.calls[0][1].textPositionValue,0);
+    assert.equal(r.props["Azure-LastSuccessfulSyncAt"],"old");assert.equal(r.props["Azure-AuthMethod"],undefined);
+});
+test("cancelling appearance causes no mutation or authentication",()=>{
+    const r=app("azure-cli",{},undefined,"appearance",false);assert.equal(r.calls.length,0);assert.equal(r.prompts.length,0);
 });

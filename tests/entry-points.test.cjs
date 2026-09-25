@@ -1,7 +1,7 @@
 
 const test=require("node:test"),assert=require("node:assert/strict"),fs=require("node:fs"),path=require("node:path"),vm=require("node:vm");
 const root=path.resolve(__dirname,"..");
-for(const [file,mode] of [["Sync Azure.ajs","sync"],["utils/Export Azure Inventory.ajs","export"],["utils/Discover Azure Resource Types.ajs","catalog"],["utils/Manage Azure Specializations.ajs","specializations"]]) {
+for(const [file,mode] of [["Sync Azure.ajs","sync"],["utils/Apply Azure Appearance.ajs","appearance"],["utils/Export Azure Inventory.ajs","export"],["utils/Discover Azure Resource Types.ajs","catalog"],["utils/Manage Azure Specializations.ajs","specializations"]]) {
     test("entry point resolves the whole package: "+file,()=>{
         const script=path.join(root,"scripts",file),loaded=[],calls=[];
         function javaPath(p){return {getParent:()=>javaPath(path.dirname(p)),toAbsolutePath:()=>path.resolve(p)};}
