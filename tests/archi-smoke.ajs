@@ -18,9 +18,9 @@
         var p=C.plan(AzureArchi.readElements(m),snapshot,mapping,options);
         if(options && options.useSpecializations) {
             var used={}; p.operations.forEach(function(op){if(op.specialization)used[C.lower(op.properties["Azure-ObjectType"])]=mapping[C.lower(op.properties["Azure-ObjectType"])];});
-            AzureArchi.applyProfiles(m,AzureArchi.prepareProfiles(m,used,root,false));
+            AzureArchi.applyProfiles(m,AzureArchi.prepareProfiles(m,used,root,false,false));
         }
-        AzureArchi.apply(m,p,options,AzureArchi.prepareImages(p,root)); return p;
+        AzureArchi.apply(m,p,options); return p;
     }
     function concept(id) { var result; $(m).find("element").each(function(e){e=e.concept||e;if(String(e.prop("Azure-ObjectId"))===id)result=e;});return result; }
     function ancestry(e) { var names=[],p=$(e).parent().first();while(p && String(p.type)==="folder"){names.unshift(String(p.name));p=$(p).parent().first();}return names; }
@@ -33,6 +33,12 @@
     var view=m.createArchimateView("Images"),view2=m.createArchimateView("Second occurrence");
     var a=view.add(element,50,50,240,100),b=view2.add(element,20,30,220,90),untouched=view.add(peer,350,50,120,80);
     untouched.imagePosition=8;
+    a.image=null;b.image=null;a.imageSource=1;b.imageSource=1;
+    a.imagePosition=8;a.textPosition=0;a.textAlignment=4;
+    var savedIconLookup=AzureJava.icon;AzureJava.icon=function(){throw new Error("Sync must not load icon assets");};
+    try { sync(); } finally { AzureJava.icon=savedIconLookup; }
+    ok(a.image===null && b.image===null && a.imageSource===1 && a.imagePosition===8 && a.textPosition===0 && a.textAlignment===4,"Standard sync preserves icon-free diagram objects and manual text positioning");
+    ok(!m.prop("Azure-ImagePosition") && !m.prop("Azure-TextPosition"),"Sync does not store appearance settings");
     var syncBeforeAppearance=String(m.prop("Azure-LastSuccessfulSyncAt"));
     AzureArchi.applyAppearance(m,AzureArchi.prepareAppearance(m,mapping,root),{});
     ok(a.image!==null && b.image!==null && a.textPosition===2 && a.textAlignment===2,"Offline utility formats manually placed objects without another sync");
@@ -42,6 +48,8 @@
     AzureArchi.applyAppearance(m,AzureArchi.prepareAppearance(m,mapping,root),{imagePosition:"bottom-right",textPosition:"top-left"});
     ok(a.imagePosition===8 && a.textPosition===0 && a.textAlignment===1,"Configurable image and text positions");
     var foldersBefore=$(m).find("folder").size(); sync();
+    ok(a.imagePosition===8 && a.textPosition===0 && a.textAlignment===1 && a.imageSource===1,"Sync preserves existing custom images and their manual placement");
+    AzureArchi.applyAppearance(m,AzureArchi.prepareAppearance(m,mapping,root),{});
     ok(AzureArchi.readElements(m).length===1 && String(element.id)===id,"Repeat sync preserves identity across views");
     ok($(m).find("folder").size()===foldersBefore && String($(element).parent().first().id)===folderId,"Repeat sync reuses folder IDs");
     ok(a.image!==null && b.image!==null && a.imageSource===1 && b.imageSource===1,"Custom images on every diagram occurrence");
@@ -52,7 +60,11 @@
     snapshot.resources=[vm];snapshot.collectedAt="2026-09-26T11:22:33Z";sync();
     ok(String(element.prop("DeletedDate"))==="" && String(element.prop("CreatedTime"))==="10:20:30Z","Restoration preserves creation and clears deletion");
     sync({useSpecializations:true});
-    ok(!!element.specialization && m.specializations.length===1 && a.imageSource===0 && a.imagePosition===1,"Opt-in specialization and Top Center");
+    ok(!!element.specialization && m.specializations.length===1 && a.imageSource===1 && a.imagePosition===1 && m.findSpecialization(element.specialization,"node").image===null,"Opt-in sync profiles have no new icons and do not change diagram image source");
+    var profileMapping={};profileMapping[C.lower(vm.type)]=mapping[C.lower(vm.type)];
+    AzureArchi.applyProfiles(m,AzureArchi.prepareProfiles(m,profileMapping,root,false));
+    sync({useSpecializations:true});
+    ok(m.findSpecialization(element.specialization,"node").image!==null && a.imageSource===1,"Sync preserves existing optional profile icons without changing custom image source");
     sync();
     ok(!element.specialization && m.specializations.length===1 && a.imageSource===1,"Turning off detaches managed assignment without deleting definitions");
     vm.subscriptionName="Renamed subscription";sync({rootFolderName:"Cloud estate"});
@@ -86,7 +98,7 @@
     }
     var first=containers(sub,"demo"),second=containers(sub2,"demo"),r1=resource(sub,"demo","Microsoft.Compute/virtualMachines","first"),r2=resource(sub2,"demo","Microsoft.Compute/virtualMachines","second");
     var rs={tenantId:tenant,subscriptionIds:[sub,sub2],completedSubscriptions:[sub,sub2],resources:first.concat(second,[r1,r2]),confirmedMissing:[],collectedAt:"2026-09-25T10:20:30Z"};
-    function rSync(){var rp=C.plan(AzureArchi.readElements(rm),rs,mapping);return AzureArchi.apply(rm,rp,{},AzureArchi.prepareImages(rp,root));}
+    function rSync(){var rp=C.plan(AzureArchi.readElements(rm),rs,mapping);return AzureArchi.apply(rm,rp,{});}
     function rRels(){var out=[];$(rm).find("relationship").each(function(r){out.push(r);});return out;}
     var beforeViews=$(rm).find("view").size(),rr=rSync(),relations=rRels(),relationIds=relations.map(function(r){return String(r.id);}).sort().join(",");
     ok(rr.relationships.created===4 && relations.length===4,"Creates subscription/group and group/resource compositions");

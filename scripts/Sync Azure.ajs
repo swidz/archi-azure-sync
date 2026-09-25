@@ -2,15 +2,11 @@
     // User settings. Never put credentials here.
     var AZURE_ROOT_FOLDER = "Azure";
     var AZURE_USE_SPECIALIZATIONS = false;
-    // top/middle/bottom + left/center/right; image also supports "fill".
-    var AZURE_IMAGE_POSITION = "top-center";
-    var AZURE_TEXT_POSITION = "bottom-center";
 
     var root = String(Java.type("java.nio.file.Paths").get(__DIR__).getParent().toAbsolutePath());
     ["lib/core.js", "lib/azure-client.js", "lib/azure-cli.js", "lib/azure-cli-java.js", "lib/java-runtime.js", "lib/archi-adapter.js", "lib/app.js", "config/specializations.js"]
         .forEach(function (file) { load(root + "/" + file); });
     AzureApp.run("sync", root, AZURE_SPECIALIZATIONS, {
-        rootFolderName: AZURE_ROOT_FOLDER, useSpecializations: AZURE_USE_SPECIALIZATIONS,
-        imagePosition: AZURE_IMAGE_POSITION, textPosition: AZURE_TEXT_POSITION
+        rootFolderName: AZURE_ROOT_FOLDER, useSpecializations: AZURE_USE_SPECIALIZATIONS
     });
 }());

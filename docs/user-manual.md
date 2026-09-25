@@ -1,6 +1,6 @@
 # User manual
 
-For a fresh installation, run **Sync Azure.ajs**. The four scripts in **scripts/utils** are optional tools for inspection and maintenance; there is no mandatory discovery or specialization-installation step.
+For a fresh installation, run **Sync Azure.ajs**. The four scripts in **scripts/utils** are optional tools for inspection and maintenance; there is no mandatory discovery, icon or specialization-installation step. **Icons are optional and are never applied by the standard sync script.**
 
 ## 1. Download from GitHub
 
@@ -97,17 +97,14 @@ At the top of **scripts/Sync Azure.ajs**:
 ~~~javascript
 var AZURE_ROOT_FOLDER = "Azure";
 var AZURE_USE_SPECIALIZATIONS = false;
-var AZURE_IMAGE_POSITION = "top-center";
-var AZURE_TEXT_POSITION = "bottom-center";
 ~~~
 
 - AZURE_ROOT_FOLDER controls the first custom folder below Technology & Physical. It is a model-folder name, not a filesystem path.
-- AZURE_IMAGE_POSITION defaults to "top-center".
-- AZURE_TEXT_POSITION defaults to "bottom-center", controlling both vertical placement and horizontal alignment of the name.
-- Both position settings accept "top-left", "top-center", "top-right", "middle-left", "middle-center", "middle-right", "bottom-left", "bottom-center", "bottom-right". Images also accept "fill", which scales to the shape.
-- AZURE_USE_SPECIALIZATIONS defaults to false. Resources are ordinary Nodes with custom images on their diagram occurrences. Setting it to true explicitly enables creation/assignment of the mapped native specializations.
+- AZURE_USE_SPECIALIZATIONS defaults to false. Resources are ordinary Nodes. Setting it to true explicitly enables creation/assignment of the mapped native specializations; Sync creates new profiles without images and retains existing profile images.
 
-The existing config/specializations.js filename is retained for compatibility. It still controls base types and icon paths when specializations are off. All bundled base types are Node. Unmapped resources use Node and the generic Azure icon. You do not need to install thousands of profiles to synchronize.
+Sync does not load icon assets, assign custom images or change diagram image/text placement. If you want Azure icons, configure and run the separate **Apply Azure Appearance.ajs** utility described in section 8. Users who prefer plain Archi shapes can skip it.
+
+The existing config/specializations.js filename is retained for compatibility. It controls base types and optional icon mappings. All bundled base types are Node. Unmapped resources use Node and receive a generic Azure icon only when the optional appearance utility is run. You do not need to install thousands of profiles to synchronize.
 
 Do not put passwords, client secrets, access tokens or refresh tokens in these files or model properties.
 
@@ -156,20 +153,31 @@ Find them in the model's Relationships folder. They express whole-to-part contai
 
 The **Other** folder is not an Azure resource group: it has no synthetic Node or composition links. If a parent Node is missing from inventory, the preview reports it and that link is skipped. The script never creates a view or draws connections. Add existing relationships to your manually created diagrams using Archi when desired.
 
-## 8. Use icons in diagrams
+## 8. Optional: add icons to diagrams
 
-Archi stores custom images on **diagram occurrences**, not on the underlying Node. This is why images previously seemed to require two syncs: a fresh import created Nodes before you placed them in a view. Existing occurrences receive their images during the first applied sync; objects placed afterward need local formatting.
+**Skip this section if you do not want Azure icons.** Sync updates inventory, folders and composition relationships without assigning custom images or formatting existing diagram objects. It does not remove images that were previously applied; remove unwanted custom images using Archi's image settings.
 
-1. Run **Sync Azure.ajs** once to create or update the model elements and relationships.
+To use Azure icons:
+
+1. Run **Sync Azure.ajs** to create or update model elements and relationships.
 2. Create a view yourself and drag the desired Nodes onto it.
-3. Run **scripts/utils/Apply Azure Appearance.ajs** and confirm. It assigns custom images and name placement to all managed Azure occurrences in the selected model, across its views. It needs no Azure sign-in and does not change inventory properties, relationships or synchronization timestamps.
-4. Save the model when ready. After adding more Nodes later, run the same local utility again.
+3. Run **scripts/utils/Apply Azure Appearance.ajs** and confirm. It applies custom images and name placement to all managed Azure occurrences in the selected model, across its views. It needs no Azure sign-in and does not change inventory properties, relationships or synchronization timestamps.
+4. Save the model when ready. After adding more Nodes later, rerun the utility only if you want icons on those Nodes.
 
-Images default to **Top Center** and names to **Bottom Center**. Change AZURE_IMAGE_POSITION and AZURE_TEXT_POSITION in Sync Azure.ajs before syncing; a successful sync saves those choices as Azure-ImagePosition and Azure-TextPosition model properties for the local utility. The utility affects managed Azure occurrences throughout the model, including subscriptions outside your last sync scope. A normal Sync formats only its selected scope.
+The two positioning variables are at the top of **Apply Azure Appearance.ajs**:
 
-The bundled PNGs have a maximum dimension of **48 pixels**, reduced from 96 while preserving aspect ratio and transparency. This is a one-time asset-size change, not repeated shrinking on each run. Diagram positions and shape dimensions are preserved. Applying Sync or the local utility replaces existing managed occurrences' images with the updated assets. Custom replacement PNGs use their own dimensions; the optional "fill" image placement stretches to the shape.
+~~~javascript
+var AZURE_IMAGE_POSITION = "top-center";
+var AZURE_TEXT_POSITION = "bottom-center";
+~~~
 
-Images are embedded in the model and survive save/reopen. No diagrams, connections or background listeners are generated. With specializations enabled, Sync assigns the profile image to existing mapped occurrences; the local utility always assigns a custom image without removing any specialization assignment.
+Both accept "top-left", "top-center", "top-right", "middle-left", "middle-center", "middle-right", "bottom-left", "bottom-center", "bottom-right". Images also accept "fill", which scales the image to the shape. The text setting controls vertical placement and horizontal alignment. The utility uses its own variables; old Azure-ImagePosition/Azure-TextPosition model properties from version 0.4 are ignored.
+
+The bundled PNGs have a maximum dimension of **48 pixels**, reduced from 96 while preserving aspect ratio and transparency. This is a one-time asset-size change, not repeated shrinking on each run. Diagram positions and shape dimensions are preserved. Custom replacement PNGs use their own dimensions.
+
+Archi stores custom images on diagram occurrences. The utility therefore formats Nodes already placed in views. It embeds the images in the model, so they survive save/reopen. It covers all managed Azure occurrences in the selected model, including subscriptions outside your last sync scope, and replaces any custom images previously chosen for those occurrences. Cancel the confirmation to keep their current appearance.
+
+No diagrams or connections are generated. The utility always assigns custom images without changing specialization assignments. Users who explicitly install profile icons through Manage Azure Specializations may also see inherited images through Archi; Sync preserves those profile images and never changes the diagram image-source setting.
 
 ## 9. Subsequent runs
 
@@ -191,15 +199,17 @@ Authentication, incomplete inventory, or uncertain deletion checks stop before m
 | Discover Azure Resource Types.ajs | Review provider-advertised types for catalog maintenance. Saves JavaScript rows with blank icons. Results include operation/status entries and are not automatically merged. |
 | Manage Azure Specializations.ajs | Advanced, offline bulk profile maintenance. Not needed for normal sync. Its own AZURE_USE_SPECIALIZATIONS flag also defaults to false; explicitly set it true in that utility to enable it, then review the confirmation. It can install every enabled catalog entry or remove script-owned disabled entries without deleting elements. |
 
-Turning the main script's specialization flag off detaches script-owned specialization assignments from synchronized elements and uses custom diagram images. Existing profile definitions and assignments on unselected elements remain. Unowned user specializations are preserved. The utility's flag is separate and only controls that explicit bulk-maintenance operation.
+Turning the main script's specialization flag off detaches script-owned specialization assignments from synchronized elements. It does not replace them with custom images. Existing profile definitions and assignments on unselected elements remain. Unowned user specializations are preserved. The utility's flag is separate and only controls that explicit bulk-maintenance operation.
 
 ## 11. Upgrade an existing installation
 
-Save your model and keep any custom mapping changes. Download/extract the new complete package or update your clone, preserving local edits to config/specializations.js and your chosen settings in Sync Azure.ajs. Git users should review local changes before pulling.
+Save your model and keep any custom mapping changes. Download/extract the new complete package or update your clone, preserving local edits to config/specializations.js and your chosen settings in both Sync Azure.ajs and Apply Azure Appearance.ajs. Git users should review local changes before pulling.
 
 Replace runtime files and assets, including the updated 48-pixel PNGs. Keep all four utility entry points under scripts/utils. Remove stale copies/links at the old scripts root after verifying that their new counterparts exist. Refresh Scripts Manager or restart Archi. Do not move your Azure inventory/discovery exports into the repository as part of the upgrade.
 
-Run Sync Azure on a copy of the existing model first. The default next run reorganizes scoped elements and switches their script-owned specializations to custom diagram images. It preserves IDs, documentation and diagram layout, reuses existing containment relationships and creates any missing ones. Save/reopen and run again to verify no duplicate concepts or folders before using the updated script for your regular model.
+Version 0.5 makes custom icons entirely optional. If you previously customized image/text positions in Sync Azure.ajs, move those values into Apply Azure Appearance.ajs. Existing custom images are retained, not removed or reformatted by Sync.
+
+Run Sync Azure on a copy of the existing model first. The default next run reorganizes scoped elements and detaches script-owned specialization assignments without adding custom images. It preserves IDs, documentation and diagram layout, reuses existing containment relationships and creates any missing ones. Save/reopen and run again to verify no duplicate concepts or folders before using the updated script for your regular model.
 
 ## 12. Scope and verification
 

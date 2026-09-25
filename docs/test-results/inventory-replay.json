@@ -6,9 +6,11 @@
   "resourceTypes": 95,
   "foldersIncludingBuiltIn": 634,
   "specializations": 0,
-  "firstApplyMs": 2834,
-  "repeatWithIconsMs": 1101,
+  "firstApplyMs": 2507,
+  "repeatWithIconsMs": 774,
   "checks": [
+    "standard sync leaves new occurrences without custom icons",
+    "standard sync preserves utility-applied appearance",
     "no generated diagrams",
     "all ARM containment links",
     "stable composition IDs",

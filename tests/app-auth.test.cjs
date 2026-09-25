@@ -18,7 +18,7 @@ function app(method="azure-cli", overrides={}, options, mode="sync", confirm=tru
             deviceLogin:(io,cfg)=>{calls.push(["device",cfg]);return {accessToken:"fake",expiresAt:9999999999999};},
             create:()=>({inventory:()=>H.snapshot()})
         },
-        AzureArchi:{prepareAppearance:()=>({count:2}),applyAppearance:(m,a,o)=>calls.push(["appearance",o]),readElements:()=>[],prepareImages:()=>({}),prepareProfiles:()=>{calls.push(["profiles-planned"]);return {};},applyProfiles:()=>calls.push(["profiles-applied"]),
+        AzureArchi:{prepareAppearance:()=>({count:2}),applyAppearance:(m,a,o)=>calls.push(["appearance",o]),readElements:()=>[],prepareImages:()=>{throw Error("Sync must not prepare images");},prepareProfiles:(m,map,root,remove,includeImages)=>{calls.push(["profiles-planned",includeImages]);return {};},applyProfiles:()=>calls.push(["profiles-applied"]),
             apply:(m,p,o)=>calls.push(["applied",o])}
     };
     vm.runInNewContext(fs.readFileSync(require.resolve("../lib/app.js"),"utf8"),context);
@@ -67,11 +67,22 @@ test("cancelling preview does not apply folders, icons, configuration or profile
 
 test("appearance is offline and preserves synchronization metadata",()=>{
     const overrides={"Azure-LastSuccessfulSyncAt":"old","Azure-ImagePosition":"bottom-right","Azure-TextPosition":"top-left"};
-    const r=app("azure-cli",overrides,undefined,"appearance");
+    const r=app("azure-cli",overrides,{imagePosition:"bottom-right",textPosition:"top-left"},"appearance");
     assert.equal(r.prompts.length,0);assert.equal(r.calls.length,1);assert.equal(r.calls[0][0],"appearance");
     assert.equal(r.calls[0][1].imagePositionValue,8);assert.equal(r.calls[0][1].textPositionValue,0);
     assert.equal(r.props["Azure-LastSuccessfulSyncAt"],"old");assert.equal(r.props["Azure-AuthMethod"],undefined);
 });
 test("cancelling appearance causes no mutation or authentication",()=>{
     const r=app("azure-cli",{},undefined,"appearance",false);assert.equal(r.calls.length,0);assert.equal(r.prompts.length,0);
+});
+
+test("sync never invokes diagram appearance and opt-in profiles exclude image import",()=>{
+    const r=app("azure-cli",{}, {useSpecializations:true});
+    assert.match(r.alerts[0],/synchronization complete/);
+    assert.ok(!r.calls.some(c=>c[0]==="appearance"));
+    assert.equal(r.calls.find(c=>c[0]==="profiles-planned")[1],false);
+});
+test("appearance uses its own options instead of old sync-owned settings",()=>{
+    const r=app("azure-cli",{"Azure-ImagePosition":"bottom-right","Azure-TextPosition":"top-left"},undefined,"appearance");
+    assert.equal(r.calls[0][1].imagePosition,"top-center");assert.equal(r.calls[0][1].textPosition,"bottom-center");
 });

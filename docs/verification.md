@@ -4,13 +4,13 @@ Date: 2026-09-25.
 
 ## Executed locally
 
-- 67 offline tests passed on Node.js 24.19.0 / Windows.
+- 69 offline tests passed on Node.js 24.19.0 / Windows.
 - JavaScript/entry-point syntax and all 3,406 mapping/icon references passed validation.
 - Actual **Archi 5.10.0.202608252016 + jArchi 1.12.0.202604070605**, using the installed GraalVM engine, passed the model smoke test in an isolated configuration/data directory.
-- Updated model test: 40 assertions cover the existing folders/profiles/migration behavior plus 48-pixel icons, configurable image/name positions, offline appearance without another sync, no generated diagrams, composition creation/reuse, manual relationship preservation, soft-delete/restoration, unselected scope and relationship save/reload.
+- Updated model test: 44 assertions cover folders/profiles/migration, 48-pixel icons, configurable image/name positions in the optional utility, no generated diagrams, composition creation/reuse, manual relationship preservation, soft-delete/restoration, scope and save/reload. New checks confirm Sync works with icon loading disabled, leaves plain diagram Nodes without custom images, preserves existing images and placement, stores no appearance settings, and creates optional profiles without importing or clearing profile images.
 - Actual jArchi Java HTTPS reached public Entra discovery metadata (HTTP 200) and ARM without credentials (expected HTTP 401).
 - Icon preparation rendered 714 SVGs into PNGs at a maximum dimension of 48 pixels. No runtime rasterizer is required.
-- Offline replay of the user-provided inventory in an isolated, disposable in-memory Archi model passed: 3,128 objects, 95 types, 634 folders including built-in folders, 3,126 composition relationships and zero profiles. Repeated application preserved concept and relationship IDs and folder counts. No diagrams were generated. One manually placed occurrence per type received a custom Top Center image and Bottom Center label through the offline utility before another sync. Application took about 2.8 seconds initially and 1.1 seconds on repeat on this machine; these timings exclude Azure collection, UI overhead and disk saves.
+- Offline replay of the user-provided inventory in a disposable in-memory Archi model passed: 3,128 objects, 95 types, 634 folders, 3,126 composition relationships and zero profiles. No diagrams were generated. One manually placed occurrence per type remained without custom images after Sync; the optional utility then applied icons and labels, and another Sync retained that appearance. Repeated application preserved concept/relationship IDs and folder counts. Application took about 2.5 seconds initially and 0.8 seconds on repeat, excluding Azure collection, UI overhead and disk saves.
 - The optional CLI process bridge passed in actual Windows Archi/jArchi with a fake az.cmd: spaces/parentheses in its path, token JSON parsing, noisy stderr drainage, exit-code handling and timeout/child-process termination.
 - Automated tests use disposable models; no existing architecture model or live tenant credentials are used. The user separately exported a live inventory covering 3,128 objects across two subscriptions; that confirms inventory collection for that session, not a live deletion/restoration test.
 
@@ -35,7 +35,7 @@ The included GitHub Actions workflow runs offline tests on Windows, Ubuntu and m
 1. Use a copy of your model and a small subscription with full read access.
 2. Export inventory and compare it with Azure Portal's ARM resource list.
 3. Check subscription → resource group and resource group → resource composition links in the Relationships folder. Sync again; no duplicate concepts or links should appear, and no diagrams should be generated.
-4. Manually add an element to two views and run utils/Apply Azure Appearance.ajs; check 48-pixel custom Azure images at Top Center and names at Bottom Center, with unchanged sync timestamps and shape bounds. Verify no profiles are created with the default flag.
+4. Manually add an element to two views and run Sync: no custom images or formatting should be added. Optionally run utils/Apply Azure Appearance.ajs; check 48-pixel icons at Top Center and names at Bottom Center, with unchanged sync timestamps and shape bounds. Change the positions manually and sync again; they should remain unchanged.
 5. Delete a disposable Azure test resource through your normal Azure workflow; sync and check IsDeleted/timestamps.
 6. Recreate the same resource ID; restoration should clear deletion fields and preserve Created values.
 7. Try a subscription without read access; the run should stop before model changes.

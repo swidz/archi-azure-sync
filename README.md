@@ -6,7 +6,7 @@ Synchronize Azure Resource Manager inventory into an existing, selected Archi mo
 
 Resources default to ordinary Technology-layer **Nodes**, organized under **Azure → Subscription → Resource group (or Other) → Object type**. Existing managed elements are moved into this hierarchy on the next applied sync. Their IDs, relationships and diagram layout are preserved.
 
-**Specializations are off by default.** Azure icons use custom images at **Top Center**, with names at **Bottom Center**. Bundled images have a maximum dimension of **48 pixels**, half the previous 96. After manually placing Nodes in a view, run **scripts/utils/Apply Azure Appearance.ajs** locally; another Azure sync is unnecessary. Custom images belong to diagram occurrences.
+**Icons are optional. Sync Azure.ajs does not add custom images or change diagram image/text placement.** Run **scripts/utils/Apply Azure Appearance.ajs** only if you want Azure icons on Nodes you have manually placed in views. It runs locally, without Azure authentication. Bundled images have a maximum dimension of **48 pixels**; the utility defaults to images at **Top Center** and names at **Bottom Center**. Specializations remain off by default.
 
 Sync creates **composition relationships named "composed of"** from each subscription to its resource groups and from each resource group to its resources. Repeated runs reuse existing links. **No script generates diagrams or diagram connections.**
 
@@ -17,7 +17,7 @@ Sync creates **composition relationships named "composed of"** from each subscri
 3. Put the complete package in your existing jArchi Scripts folder, or point **Preferences → Scripting → Scripts folder** at this package's scripts directory. Keep lib, config and assets beside scripts. See the [manual](docs/user-manual.md#3-make-the-scripts-visible) for links and other installation options.
 4. [Connect to Azure](docs/authentication.md): either run **az login** using Azure CLI 2.54+ and select **Azure CLI (no own app registration)**, or choose direct device sign-in using your public-client app. Both methods support user sign-in/MFA without a client secret in the model.
 5. Select a test model, run **Sync Azure.ajs**, enter tenant/subscription IDs, review the preview and apply. No utility script is required first.
-6. Review, save and commit the model using your usual workflow. After manually placing elements in a view, run **utils/Apply Azure Appearance.ajs** for icons and label positioning.
+6. Review, save and commit the model using your usual workflow. **Optional:** after manually placing elements in a view, run **utils/Apply Azure Appearance.ajs** if you want icons and label positioning. Skip it for plain Archi shapes.
 
 All selected subscriptions in one run must belong to the specified tenant. Unselected subscriptions and other tenants' elements remain untouched. Azure public cloud is supported.
 
@@ -28,25 +28,30 @@ At the top of scripts/Sync Azure.ajs:
 ~~~javascript
 var AZURE_ROOT_FOLDER = "Azure";
 var AZURE_USE_SPECIALIZATIONS = false;
-var AZURE_IMAGE_POSITION = "top-center";
-var AZURE_TEXT_POSITION = "bottom-center";
 ~~~
 
 Subscription folder labels include display name and GUID. Full ARM types form single folder labels. Missing resource groups use Other; a real group named Other is labelled Other (resource group). Changing the root name renames the managed root. Empty folders are retained.
 
-Image and text positions accept top/middle/bottom combined with left/center/right, for example "top-center" or "bottom-right". Image position also accepts "fill", which scales the image to the shape. The local appearance utility uses the positions saved by the last successful Sync.
+Optional appearance settings live in **scripts/utils/Apply Azure Appearance.ajs**:
+
+~~~javascript
+var AZURE_IMAGE_POSITION = "top-center";
+var AZURE_TEXT_POSITION = "bottom-center";
+~~~
+
+Positions accept top/middle/bottom combined with left/center/right, for example "top-center" or "bottom-right". Image position also accepts "fill", which scales the image to the shape. Sync does not read or save these settings.
 
 ## Scripts
 
 | Entry point | Purpose |
 | --- | --- |
-| scripts/Sync Azure.ajs | Collect and verify inventory, preview changes, create/update/soft-delete elements, organize folders, ensure composition relationships and format existing diagram objects. |
-| scripts/utils/Apply Azure Appearance.ajs | Locally apply custom icons and image/name positions to managed Azure objects already placed in views. No Azure connection or sync-timestamp changes. |
+| scripts/Sync Azure.ajs | Collect and verify inventory, preview changes, create/update/soft-delete elements, organize folders and ensure composition relationships. Does not add custom images or format diagrams. |
+| scripts/utils/Apply Azure Appearance.ajs | Optional: locally apply custom icons and image/name positions to managed Azure objects already placed in views. No Azure connection or sync-timestamp changes. |
 | scripts/utils/Export Azure Inventory.ajs | Save actual inventory as JSON without modifying the model. |
 | scripts/utils/Discover Azure Resource Types.ajs | Export provider-advertised types for manual catalog review; does not merge them automatically. |
 | scripts/utils/Manage Azure Specializations.ajs | Optional offline bulk profile maintenance, explicitly guarded by its own false-by-default flag. Not needed for synchronization. |
 
-config/specializations.js contains **3,406 editable type/base/icon mappings** even when profile creation is disabled. All shipped base types are Node; unmapped types use Node and the generic Azure icon. The V24 archive contributes **714 PNG icons**, reused across resource types. Commenting out a mapping does not filter inventory. See [catalog and icons](docs/catalog.md).
+config/specializations.js contains **3,406 editable type/base/icon mappings** even when profile creation is disabled. All shipped base types are Node; unmapped types use Node, with the generic Azure icon only when the appearance utility is run. The V24 archive contributes **714 PNG icons**, reused across resource types. Commenting out a mapping does not filter inventory. Existing custom images remain until you change or remove them in Archi; skipping the appearance utility does not remove previously applied images. See [catalog and icons](docs/catalog.md).
 
 ## Element properties
 
@@ -88,7 +93,6 @@ The script stores only non-secret configuration and synchronization metadata:
 - Azure-AuthMethod — selectable device-code or azure-cli authentication, remembered after successful sync.
 - Azure-TenantId, Azure-ClientId, Azure-SubscriptionIds — next-run defaults; CLI does not require a client ID.
 - Azure-LastSuccessfulSyncAt, Azure-LastSuccessfulSyncSubscriptions — last applied run.
-- Azure-ImagePosition, Azure-TextPosition — last applied placement settings, reused by the offline appearance utility.
 - Azure-SyncSpecializations — ownership registry for managed profiles.
 
 An optional Azure-UserId property may document an expected account but is not used to authenticate; the browser determines the signed-in account. There is no password/secret prompt or token storage in the model. Direct device sign-in has no persistent token cache and requests no offline_access scope. The CLI option reuses Azure CLI's own local authentication cache, which must stay outside your Git repositories. Both methods hold the current token in memory during the run and clear the retained reference afterward. JVM memory cannot guarantee immediate secure erasure.
@@ -105,6 +109,7 @@ The **script repository** is separate from the **model repository**. Scripts do 
 - A move/rename that changes the ARM ID creates a new identity and soft-deletes the old identity after verification.
 - Descriptions, unrelated properties, relationships and diagram layouts survive. Azure-owned names/properties refresh.
 - Base-type changes stop with an explanation; change the type deliberately in Archi first.
+- Sync never loads icon assets, including when specialization creation is enabled. New profiles created by Sync have no image; existing profile images are retained. The optional Manage Azure Specializations utility can install profile icons, which Archi may display through its own profile inheritance. Sync does not switch any diagram image source.
 - Specializations are opt-in. With the flag off, scoped script-owned assignments are detached, while definitions and unowned assignments remain. The guarded utility can explicitly remove owned profiles.
 - Network/authentication/validation failures occur before mutation. An exceptional failure during image import or application can leave partial in-memory changes; use **Edit → Undo** before retrying. The script uses public jArchi undoable APIs.
 
