@@ -1,0 +1,64 @@
+/* Run only against a fresh test model created here. No Azure calls; no user model is opened. */
+(function () {
+    var Paths = Java.type("java.nio.file.Paths");
+    var root = String(Paths.get(__DIR__).getParent().toAbsolutePath());
+    ["lib/core.js", "lib/java-runtime.js", "lib/archi-adapter.js", "lib/azure-client.js", "config/specializations.js"]
+        .forEach(function (f) { load(root + "/" + f); });
+    var C = AzureCore;
+    var m = $.model.create("Azure synchronization smoke test");
+    m.setAsCurrent();
+    var tenant = "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa", sub = "11111111-1111-1111-1111-111111111111";
+    var raw = {id: "/subscriptions/" + sub + "/resourceGroups/demo/providers/Microsoft.Compute/virtualMachines/vm-smoke",
+        name: "vm-smoke", type: "Microsoft.Compute/virtualMachines"};
+    var resource = C.normalize(raw, {subscriptionId:sub, displayName:"Test"}, tenant);
+    var snapshot = {tenantId:tenant,subscriptionIds:[sub],completedSubscriptions:[sub],resources:[resource],
+        confirmedMissing:[],collectedAt:"2026-09-25T10:20:30Z"};
+    var mapping = C.mappings(AZURE_SPECIALIZATIONS);
+    var vmMap = {}; vmMap[C.lower(raw.type)] = mapping[C.lower(raw.type)];
+    var profiles = AzureArchi.prepareProfiles(m, vmMap, root, true);
+    AzureArchi.applyProfiles(m, profiles);
+    AzureArchi.apply(m, C.plan([], snapshot, vmMap));
+    var elements = AzureArchi.readElements(m);
+    C.assert(elements.length === 1, "One element must be created");
+    C.assert(elements[0].properties.CreatedTime === "10:20:30Z", "UTC timestamp must round-trip");
+    var element = $(m).find("element").first();
+    C.assert(String(element.specialization) === vmMap[C.lower(raw.type)].name, "Specialization assigned");
+    C.assert(m.findSpecialization(String(element.specialization), "node").image !== null, "Icon assigned");
+    var peer = m.createElement("node", "Unmanaged peer");
+    var rel = m.createRelationship("association-relationship", "Preserve me", element, peer);
+    var archiId = String(element.id), relId = String(rel.id);
+    snapshot.collectedAt = "2026-09-26T11:22:33Z";
+    AzureArchi.apply(m, C.plan(elements, snapshot, vmMap));
+    C.assert(AzureArchi.readElements(m)[0].id === archiId, "Repeat sync must preserve element ID");
+    snapshot.resources = [];
+    snapshot.confirmedMissing = [C.identity(tenant, raw.id)];
+    AzureArchi.apply(m, C.plan(AzureArchi.readElements(m), snapshot, vmMap));
+    C.assert(String(element.prop("IsDeleted")) === "yes", "Soft deletion");
+    snapshot.resources = [resource]; snapshot.collectedAt = "2026-09-27T01:02:03Z";
+    AzureArchi.apply(m, C.plan(AzureArchi.readElements(m), snapshot, vmMap));
+    C.assert(String(element.prop("DeletedDate")) === "", "Restoration clears deletion");
+    var view = m.createArchimateView("Smoke test");
+    view.add(element, 50, 50, 240, 100);
+    var dir = AzureJava.resolve(root, "work");
+    Java.type("java.nio.file.Files").createDirectories(Paths.get(dir));
+    m.save(dir + "/smoke.archimate");
+    var loaded = $.model.load(dir + "/smoke.archimate");
+    C.assert(AzureArchi.readElements(loaded).length === 1, "Saved properties reload");
+    C.assert(loaded.findSpecialization(vmMap[C.lower(raw.type)].name, "node").image !== null, "Embedded icon reloads");
+    // Removing a script-owned specialization must not remove concepts/relationships.
+    AzureArchi.applyProfiles(m, AzureArchi.prepareProfiles(m, {}, root, true));
+    C.assert(AzureArchi.readElements(m).length === 1 && peer.name === "Unmanaged peer", "Profile removal preserves elements");
+    C.assert(String($(m).find("relationship").first().id) === relId, "Profile removal preserves relationships");
+    C.assert(!element.specialization, "Specialization reference cleared");
+    // Install the full catalog twice to verify scale, idempotence and all image references.
+    AzureArchi.applyProfiles(m, AzureArchi.prepareProfiles(m, mapping, root, true));
+    AzureArchi.applyProfiles(m, AzureArchi.prepareProfiles(m, mapping, root, true));
+    C.assert(m.specializations.length === Object.keys(mapping).length, "Full catalog idempotence");
+    m.save(dir + "/catalog-smoke.archimate");
+    AzureJava.write(dir + "/archi-smoke-result.json", JSON.stringify({
+        status:"passed", archi:String($.process.release.archiVersion), jArchi:String($.process.release.jArchiVersion),
+        specializations:Object.keys(mapping).length, checks:["create","repeat","soft-delete","restore","UTC properties",
+        "embedded icon save/reload","preserve relationships","remove profile","full catalog repeated install"]
+    }, null, 2));
+    console.log("ARCHI_AZURE_SMOKE_PASSED");
+}());

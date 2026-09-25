@@ -1,0 +1,15 @@
+/* Public, unauthenticated connectivity test; no tenant inventory or credential access. */
+(function () {
+    var root = String(Java.type("java.nio.file.Paths").get(__DIR__).getParent().toAbsolutePath());
+    load(root + "/lib/java-runtime.js");
+    var metadata = AzureJava.io.request("GET",
+        "https://login.microsoftonline.com/organizations/v2.0/.well-known/openid-configuration",
+        {Accept:"application/json"});
+    if (metadata.status !== 200 || !metadata.body.token_endpoint) throw new Error("Entra metadata transport failed.");
+    var arm = AzureJava.io.request("GET", "https://management.azure.com/subscriptions?api-version=2022-12-01",
+        {Accept:"application/json"});
+    if (arm.status !== 401 || !arm.body.error) throw new Error("Expected an unauthenticated ARM 401.");
+    AzureJava.write(root + "/work/transport-smoke-result.json",
+        JSON.stringify({status:"passed",entraMetadataStatus:metadata.status,armUnauthenticatedStatus:arm.status},null,2));
+    console.log("ARCHI_AZURE_TRANSPORT_PASSED");
+}());

@@ -1,0 +1,10 @@
+node_modules/
+work/
+*.log
+*.archimate
+*.bak
+.env*
+inventory*.json
+config/*.local.*
+
+config/*.generated.js

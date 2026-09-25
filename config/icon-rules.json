@@ -1,0 +1,34 @@
+{
+  "exact": {
+    "Microsoft.Resources/subscriptions": "10002-icon-service-Subscriptions.png",
+    "Microsoft.Resources/resourceGroups": "10007-icon-service-Resource-Groups.png",
+    "Microsoft.Compute/virtualMachines": "10021-icon-service-Virtual-Machine.png",
+    "Microsoft.Compute/disks": "10032-icon-service-Disks.png",
+    "Microsoft.Compute/snapshots": "10026-icon-service-Disks-Snapshots.png",
+    "Microsoft.ContainerService/managedClusters": "10023-icon-service-Kubernetes-Services.png",
+    "Microsoft.ContainerRegistry/registries": "10105-icon-service-Container-Registries.png",
+    "Microsoft.Network/virtualNetworks": "10061-icon-service-Virtual-Networks.png",
+    "Microsoft.Network/networkInterfaces": "10080-icon-service-Network-Interfaces.png",
+    "Microsoft.Network/publicIPAddresses": "10069-icon-service-Public-IP-Addresses.png",
+    "Microsoft.Network/publicIPPrefixes": "10372-icon-service-Public-IP-Prefixes.png",
+    "Microsoft.Network/loadBalancers": "10062-icon-service-Load-Balancers.png",
+    "Microsoft.Network/applicationGateways": "10076-icon-service-Application-Gateways.png",
+    "Microsoft.Network/privateEndpoints": "00427-icon-service-Private-Link.png",
+    "Microsoft.Network/privateLinkServices": "01105-icon-service-Private-Link-Service.png",
+    "Microsoft.Sql/servers": "10132-icon-service-SQL-Server.png",
+    "Microsoft.Sql/servers/databases": "10130-icon-service-SQL-Database.png",
+    "Microsoft.Sql/servers/elasticPools": "10134-icon-service-SQL-Elastic-Pools.png",
+    "Microsoft.Sql/managedInstances": "10136-icon-service-SQL-Managed-Instance.png",
+    "Microsoft.OperationalInsights/workspaces": "00009-icon-service-Log-Analytics-Workspaces.png"
+  },
+  "namespace": {
+    "Microsoft.Web": "10035-icon-service-App-Services.png",
+    "Microsoft.Storage": "10086-icon-service-Storage-Accounts.png",
+    "Microsoft.KeyVault": "10245-icon-service-Key-Vaults.png",
+    "Microsoft.DocumentDB": "10121-icon-service-Azure-Cosmos-DB.png",
+    "Microsoft.Automation": "00022-icon-service-Automation-Accounts.png",
+    "Microsoft.Insights": "00001-icon-service-Monitor.png",
+    "Microsoft.Monitor": "00001-icon-service-Monitor.png"
+  },
+  "fallback": "10001-icon-service-All-Resources.png"
+}

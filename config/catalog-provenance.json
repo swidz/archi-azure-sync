@@ -1,0 +1,16 @@
+{
+  "retrievedAt": "2026-09-25T11:57:02.209Z",
+  "sourceRepository": "https://github.com/Azure/bicep-types-az",
+  "sourceCommit": "1ad40b966b4573d44fea83413d14fb911ae9a543",
+  "sourcePath": "generated/index.json",
+  "sourceSha256": "8bd28af2a26d0a7852b151a1fdf7e26d07677c3b14946ba37be0f5b3ddeebbdf",
+  "resourceTypeCount": 3406,
+  "namespaceCount": 286,
+  "iconCount": 714,
+  "iconMappingCounts": {
+    "exact": 204,
+    "providerFamily": 338,
+    "generic": 2864
+  },
+  "scope": "Public Bicep schema snapshot plus subscription/resource-group containers; not every possible private/preview/data-plane type."
+}

@@ -1,0 +1,6 @@
+(function () {
+    var root = String(Java.type("java.nio.file.Paths").get(__DIR__).getParent().toAbsolutePath());
+    ["lib/core.js", "lib/azure-client.js", "lib/java-runtime.js", "lib/archi-adapter.js", "lib/app.js", "config/specializations.js"]
+        .forEach(function (file) { load(root + "/" + file); });
+    AzureApp.run("sync", root, AZURE_SPECIALIZATIONS);
+}());
