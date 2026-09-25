@@ -1,0 +1,45 @@
+/* Fake CLI only: tests the real Java subprocess bridge without Azure credentials. */
+(function () {
+    var Paths = Java.type("java.nio.file.Paths"), Files = Java.type("java.nio.file.Files");
+    var root = String(Paths.get(__DIR__).getParent().toAbsolutePath());
+    ["lib/core.js","lib/java-runtime.js","lib/azure-cli.js","lib/azure-cli-java.js"]
+        .forEach(function (f) { load(root + "/" + f); });
+    var dir = AzureJava.resolve(root, "work/fake CLI (test)");
+    Files.createDirectories(Paths.get(dir));
+    var windows = String(Java.type("java.lang.System").getProperty("os.name")).toLowerCase().indexOf("win") === 0;
+    var az = dir + (windows ? "/az.cmd" : "/az");
+    var tenant = "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa", sub = "11111111-1111-1111-1111-111111111111";
+    var account = JSON.stringify({id:sub,tenantId:tenant,environmentName:"AzureCloud",state:"Enabled",user:{type:"user"}});
+    var token = JSON.stringify({tenant:tenant,subscription:sub,tokenType:"Bearer",accessToken:"FAKE_PROCESS_TEST_TOKEN",expires_on:4102444800});
+    if (windows) {
+        AzureJava.write(az, "@echo off\r\n" +
+            'if "%2"=="show" (\r\n echo ' + account + "\r\n exit /b 0\r\n)\r\n" +
+            'if "%2"=="get-access-token" (\r\n echo ' + token + "\r\n exit /b 0\r\n)\r\n" +
+            'if "%1"=="noisy" (\r\n for /L %%i in (1,1,12000) do echo discarded-stderr-line 1>&2\r\n echo {"ok":true}\r\n exit /b 0\r\n)\r\n' +
+            'if "%1"=="wait" (\r\n ping -n 20 127.0.0.1 >nul\r\n exit /b 0\r\n)\r\n' +
+            'echo SECRET_TEST_STDERR 1>&2\r\nexit /b 7\r\n');
+    } else {
+        AzureJava.write(az, "#!/bin/sh\n" +
+            'if [ "$2" = "show" ]; then printf \'%s\\n\' \'' + account + "'; exit 0; fi\n" +
+            'if [ "$2" = "get-access-token" ]; then printf \'%s\\n\' \'' + token + "'; exit 0; fi\n" +
+            'if [ "$1" = "noisy" ]; then i=0; while [ "$i" -lt 12000 ]; do echo discarded-stderr-line >&2; i=$((i+1)); done; echo \'{"ok":true}\'; exit 0; fi\n' +
+            'if [ "$1" = "wait" ]; then sleep 20; exit 0; fi\n' +
+            "echo SECRET_TEST_STDERR >&2\nexit 7\n");
+        Paths.get(az).toFile().setExecutable(true);
+    }
+    var result = AzureCli.signIn(AzureCliJava.createIo(az), {tenantId:tenant,subscriptionIds:[sub]});
+    AzureCore.assert(result.accessToken === "FAKE_PROCESS_TEST_TOKEN", "CLI stdout token must parse");
+    result.accessToken = null;
+    var noisy = AzureCliJava.run(az, ["noisy"], 30000);
+    AzureCore.assert(noisy.exitCode === 0 && JSON.parse(noisy.stdout).ok, "Drain noisy stderr without deadlock");
+    var bad = AzureCliJava.run(az, ["bad"], 10000);
+    AzureCore.assert(bad.exitCode === 7 && bad.stdout.indexOf("SECRET_TEST_STDERR") < 0, "Discard stderr");
+    var timedOut = false;
+    try { AzureCliJava.run(az, ["wait"], 150); } catch (e) { timedOut = true; }
+    AzureCore.assert(timedOut, "Enforce process timeout");
+    AzureJava.write(root + "/work/cli-process-smoke-result.json", JSON.stringify({
+        status:"passed", platform:windows?"Windows":"POSIX",
+        checks:["path with spaces and parentheses","JSON stdout token","stderr drainage","exit status","timeout"]
+    },null,2));
+    console.log("ARCHI_AZURE_CLI_PROCESS_PASSED");
+}());

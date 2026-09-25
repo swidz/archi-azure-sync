@@ -4,21 +4,23 @@ Date: 2026-09-25.
 
 ## Executed locally
 
-- 32 offline tests passed on Node.js 24.19.0 / Windows.
+- 47 offline tests passed on Node.js 24.19.0 / Windows.
 - JavaScript/entry-point syntax and all 3,406 mapping/icon references passed validation.
 - Actual **Archi 5.10.0.202608252016 + jArchi 1.12.0.202604070605**, using the installed GraalVM engine, passed the model smoke test in an isolated configuration/data directory.
 - Model test: create, repeat sync, soft-delete, restore, UTC properties, embedded icon save/reload, relationship preservation, profile removal and full catalog installation twice without duplicates.
 - Actual jArchi Java HTTPS reached public Entra discovery metadata (HTTP 200) and ARM without credentials (expected HTTP 401).
 - Icon preparation rendered 714 SVGs into PNGs. No runtime rasterizer is required.
+- The optional CLI process bridge passed in actual Windows Archi/jArchi with a fake az.cmd: spaces/parentheses in its path, token JSON parsing, noisy stderr drainage, exit-code handling and timeout/child-process termination.
 - No live tenant credentials or existing architecture model was used or changed.
 
-Runtime result markers: ARCHI_AZURE_SMOKE_PASSED and ARCHI_AZURE_TRANSPORT_PASSED. JSON results go under the ignored work directory. Both reproducible .ajs test scripts are included.
+Runtime result markers: ARCHI_AZURE_SMOKE_PASSED and ARCHI_AZURE_TRANSPORT_PASSED. JSON results go under the ignored work directory. Reproducible .ajs scripts cover model APIs, HTTPS transport and the CLI subprocess bridge. The CLI marker is ARCHI_AZURE_CLI_PROCESS_PASSED.
 
 The isolated test configuration enabled only built-in Archi plugins and jArchi. Other installed plugins were excluded after an unrelated database plugin interrupted the first CLI attempt.
 
 ## Still requiring your environment
 
 - Complete device sign-in against your app registration, consent and Conditional Access.
+- Azure CLI sign-in and token acquisition against a live user session. Azure CLI was not installed on this test machine; the real Java process bridge used a fake CLI.
 - Inventory of your subscriptions with the intended user's Reader permissions.
 - A controlled live resource create/delete/recreate cycle and provider-specific responses.
 - Corporate proxy/trust-store settings, if applicable.

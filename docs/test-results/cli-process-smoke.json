@@ -1,0 +1,11 @@
+{
+  "status": "passed",
+  "platform": "Windows",
+  "checks": [
+    "path with spaces and parentheses",
+    "JSON stdout token",
+    "stderr drainage",
+    "exit status",
+    "timeout"
+  ]
+}

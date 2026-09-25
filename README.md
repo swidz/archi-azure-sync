@@ -1,6 +1,6 @@
 # Azure resources for Archi
 
-Synchronize Azure Resource Manager (ARM) inventory into an **existing, selected Archi model** using jArchi. The scripts run inside Archi on Windows, Linux and macOS. No Azure CLI, Node.js, Python, extra JARs or client secret is needed to run them.
+Synchronize Azure Resource Manager (ARM) inventory into an **existing, selected Archi model** using jArchi. The scripts run inside Archi on Windows, Linux and macOS. Choose direct device sign-in with an app registration, or Azure CLI sign-in without your own app registration. The CLI option needs Azure CLI 2.54+; the direct option needs no additional runtime. Neither needs Node.js, Python, extra JARs or a client secret.
 
 **Default mapping: every Azure resource type becomes a Technology-layer Node**, with a native Archi specialization. The editable catalog contains **3,406 resource types across 286 namespaces** from Microsoft's public Bicep schema index. The supplied V24 archive contributes **714 PNG icons**. This is a dated catalog snapshot; a discovery script also lists types advertised by your subscriptions.
 
@@ -8,9 +8,9 @@ Synchronize Azure Resource Manager (ARM) inventory into an **existing, selected 
 
 1. Install **Archi 5.8+ / Java 21 and jArchi 1.12+**, using the GraalVM JavaScript engine. Integration-tested here on Archi 5.10 and jArchi 1.12 on Windows.
 2. Keep the whole repository together. Point **Preferences → Scripting → Scripts folder** to this repository's **scripts** directory, or link the .ajs files in Scripts Manager **at their original locations**. Do not copy just the entry points: lib, config and assets must remain alongside scripts.
-3. Create an Entra application as described in [Authentication](docs/authentication.md). You need its tenant ID, application (client) ID and subscription IDs. Give the signed-in user Reader access at each subscription scope.
+3. Choose a connection method using [Connecting to Azure](docs/authentication.md): sign in through an installed Azure CLI using **az login**, or configure an Entra public-client app for direct device sign-in. Both methods need your tenant/subscription IDs and a user with subscription-wide read access.
 4. Open/select your architecture model and run **Sync Azure.ajs**.
-5. Enter the IDs. Open the displayed Microsoft device-login URL in your browser and enter the short code. Complete sign-in and MFA, then click OK in Archi. Your password is entered only on Microsoft's sign-in page.
+5. Select **Azure CLI (no own app registration)** or **Device sign-in (app registration)**. CLI uses your existing terminal sign-in and does not ask for a client ID. Device sign-in asks for a client ID and displays a Microsoft URL/code for browser authentication and MFA.
 6. Review the create/update/restore/delete counts and apply. Review and save/commit the model using your usual Archi collaboration workflow.
 
 All selected subscriptions in one run must belong to the specified tenant. Run again for another tenant. Other tenants and unselected subscriptions are untouched.
@@ -57,11 +57,12 @@ Resource groups and subscriptions are also Nodes. A group's resource-group prope
 
 The script stores only non-secret configuration and synchronization metadata:
 
-- Azure-TenantId, Azure-ClientId, Azure-SubscriptionIds — next-run defaults.
+- Azure-AuthMethod — selectable device-code or azure-cli authentication, remembered after successful sync.
+- Azure-TenantId, Azure-ClientId, Azure-SubscriptionIds — next-run defaults; CLI does not require a client ID.
 - Azure-LastSuccessfulSyncAt, Azure-LastSuccessfulSyncSubscriptions — last applied run.
 - Azure-SyncSpecializations — ownership registry for managed profiles.
 
-An optional Azure-UserId property may document an expected account but is not used to authenticate; the browser determines the signed-in account. There is no password/secret prompt, persistent token cache or offline_access scope. Tokens are held in process memory during a run and the retained reference is cleared afterward. JVM memory cannot guarantee immediate secure erasure.
+An optional Azure-UserId property may document an expected account but is not used to authenticate; the browser determines the signed-in account. There is no password/secret prompt or token storage in the model. Direct device sign-in has no persistent token cache and requests no offline_access scope. The CLI option reuses Azure CLI's own local authentication cache, which must stay outside your Git repositories. Both methods hold the current token in memory during the run and clear the retained reference afterward. JVM memory cannot guarantee immediate secure erasure.
 
 The **script repository** is separate from the **model repository**. Scripts do not automatically save, commit or publish models. Native specialization/image save/reload is tested; check your team's coArchi/coArchi2 round trip with its installed version.
 
