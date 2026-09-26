@@ -12,7 +12,8 @@ function app(method="azure-cli", overrides={}, options, mode="sync", confirm=tru
             prompt:(label)=>{prompts.push(label);return /tenant/i.test(label)?H.tenant:/Subscription IDs/.test(label)?(scenario.subscriptions||H.sub):H.clientId;},
             confirm:()=>confirm,alert:s=>alerts.push(s),promptSaveFile:()=>"/snapshot.json"
         },
-        AzureJava:{io:{now:()=>Date.parse(H.snapshot().collectedAt)},write:(file,text)=>calls.push(["exported",JSON.parse(text)])},
+        AzureConnections:require("../lib/connections.js"),
+        AzureJava:{io:scenario.io || {now:()=>Date.parse(H.snapshot().collectedAt)},write:(file,text)=>calls.push(["exported",JSON.parse(text)])},
         AzureEntra:{...require("../lib/entra-applications.js"),create:(io,token,progress)=>({inventory:()=>{calls.push(["graph-inventory"]);if(graphError)return require("../lib/entra-applications.js").create(H.io([{status:403,body:{error:{code:"Authorization_RequestDenied"}}}]),token,progress).inventory(H.tenant,[]);return {tenantId:H.tenant,completed:true,collectedAt:H.snapshot().collectedAt,applications:[{id:H.clientId,appId:H.clientId,displayName:"Entra app"}],confirmedMissing:[]};}})},
         AzureCliJava:{createIo:()=>{calls.push(["cli-process"]);return {};}},
         AzureCli:{signIn:(io,cfg,resource)=>{calls.push(["cli",cfg,resource]);if(scenario.authFailure)scenario.authFailure(cfg,resource);return bearer(resource);}},
@@ -139,4 +140,26 @@ test('Cancellation and integrity errors remain fatal and are printed to output',
 test('Partial export records warnings without model changes',()=>{
  const r=app('azure-cli',{}, {includeEntraApplications:true},'export',true,true),s=r.calls.find(c=>c[0]==='exported')[1];
  assert.equal(s.entraApplications.partial,true);assert.equal(s.entraApplications.completed,false);assert.equal(s.entraApplications.warnings.length,1);assert.ok(!r.calls.some(c=>c[0]==='applied'));
+});
+
+function connectionScenario(){
+ const prefix='/subscriptions/'+H.sub+'/resourceGroups/rg-test',site={id:prefix+'/providers/Microsoft.Web/sites/site',type:'Microsoft.Web/sites',name:'site'},db={id:prefix+'/providers/Microsoft.Sql/servers/sql/databases/db',type:'Microsoft.Sql/servers/databases',name:'db'};
+ return {snapshot:H.snapshot([site,db].map(r=>H.C.normalize(r,H.info,H.tenant))),io:H.io([H.ok({properties:{}}),H.ok({properties:{Database:{value:'Server=sql.database.windows.net;Database=db;Password=SECRET'}}})])};
+}
+test('Connection discovery integrates with Sync and Graph, sanitized evidence and preview cancellation',()=>{
+ for(const confirmed of [true,false]){
+  const scenario=connectionScenario(),r=app('azure-cli',{}, {discoverConnections:true,includeEntraApplications:true},'sync',confirmed,false,scenario);
+  assert.equal(scenario.io.calls.length,2);assert.ok(r.tokens.every(t=>t.accessToken===null));
+  if(confirmed){const p=r.calls.find(c=>c[0]==='applied')[2];assert.equal(p.connections.pairs.length,1);assert.ok(!JSON.stringify(p).includes('SECRET'));assert.equal(p.connections.pairs[0].type,'serving-relationship');}
+  else assert.ok(!r.calls.some(c=>c[0]==='applied'));
+ }
+});
+test('Connection reads are optional and configuration denial does not stop normal inventory',()=>{
+ const scenario=connectionScenario(),off=app('azure-cli',{}, {discoverConnections:false},'sync',true,false,scenario);assert.equal(scenario.io.calls.length,0);assert.ok(off.calls.some(c=>c[0]==='applied'));
+ const bad=connectionScenario();bad.io=H.io([{status:403,body:{}},{status:403,body:{}}]);const r=app('azure-cli',{}, {discoverConnections:true},'sync',true,false,bad);
+ const p=r.calls.find(c=>c[0]==='applied')[2];assert.equal(p.partial,true);assert.equal(p.connections.pairs.length,0);assert.ok(r.logs.some(l=>l.includes('HTTP 403')));
+});
+test('Inventory export includes only sanitized connection evidence and coverage',()=>{
+ const r=app('azure-cli',{}, {discoverConnections:true},'export',true,false,connectionScenario()),s=r.calls.find(c=>c[0]==='exported')[1];
+ assert.equal(s.connections.records.length,1);assert.equal(s.connections.completedOwners.length,1);assert.ok(!JSON.stringify(s).includes('SECRET'));assert.ok(!r.calls.some(c=>c[0]==='applied'));
 });

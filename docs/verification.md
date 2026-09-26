@@ -1,10 +1,10 @@
 # Verification record
 
-Date: 2026-09-25.
+Date: 2026-09-26. Historical checks are labelled below.
 
 ## Executed locally
 
-- 121 offline tests passed on Node.js 24.19.0 / Windows.
+- 145 offline tests passed on Node.js 24.19.0 / Windows.
 - JavaScript/entry-point syntax and all 3,407 mapping/icon references passed validation.
 - Actual **Archi 5.10.0.202608252016 + jArchi 1.12.0.202604070605**, using the installed GraalVM engine, passed the model smoke test in an isolated configuration/data directory.
 - Updated model test: 46 assertions cover folders/profiles/migration, 48-pixel icons, configurable image/name positions in the optional utility, no generated diagrams, composition creation/reuse, manual relationship preservation, soft-delete/restoration, scope and save/reload. New checks confirm Sync works with icon loading disabled, leaves plain diagram Nodes without custom images, preserves existing images and placement, stores no appearance settings, and creates optional profiles without importing or clearing profile images.
@@ -12,9 +12,10 @@ Date: 2026-09-25.
 - Version 0.9 was verified in both model tests: all new relationships have blank names; repeated sync clears legacy and custom names across composition, assignment and SQL serving links without duplicate creation; names on soft-deleted owned links are cleared; manual and unselected links retain their names; blank names survive save/reload.
 - Entra model test: 17 assertions in tests/entra-smoke.ajs passed in the installed Graal engine: projected Graph collection, Node type, Object/Client IDs, tenant folders, no invented subscription/group, identity across repeat/rename/subscription changes, disabled collection and other-tenant isolation, soft delete/restore, optional icon handling, and save/reload. The 46-assertion model and 33-assertion child tests also passed again.
 - Version 0.11 partial-access test: 18 assertions in tests/partial-smoke.ajs verify continuation after denied queues, subscriptions and Graph pages; readable SQL/app updates; protected element and relationship properties, GUIDs and timestamps; partial/complete model metadata; later recovery; no diagrams/profiles; and save/reload. Offline tests also cover consent/token failures, CLI fallback, partial pages, group fallback, unavailable parent details, retry/network failures, discovery warnings, cancellation and fatal scope validation.
+- Version 0.12 connection test: 22 assertions in tests/connections-smoke.ajs verify real Graal collection, Triggering/Flow to Technology Functions, Serving, cross-subscription source folders, multi-setting evidence, endpoint GUID reuse, manual preservation, failed/disabled discovery protection, removal/restoration, no diagrams/profiles, and secret-free model save/reload. Parser/collector tests additionally cover quoted/braced credentials, URI credentials/SAS removal, managed identities, exact-setting precedence, ambiguous/unresolved references, scope, pagination, retries, disabled binding metadata and preview/export integration.
 - Actual jArchi Java HTTPS reached public Entra discovery metadata (HTTP 200) and ARM without credentials (expected HTTP 401).
 - Icon preparation rendered 714 SVGs into PNGs at a maximum dimension of 48 pixels. No runtime rasterizer is required.
-- Historical v0.6 validation: offline replay of the older user-provided inventory passed: 3,128 objects, 95 types, 634 folders, 3,152 relationships (3,126 compositions plus 26 SQL server-to-database serving links) and zero profiles. Existing SQL databases were retained without duplicates. Repeat sync preserved IDs and optional diagram appearance. Application took about 2.5 seconds initially and 0.9 seconds on repeat, excluding Azure/network/UI/saving. This older export contains no individual Functions, queues or topics; their collection was tested with synthetic ARM responses, not live access. This export is no longer available at its original path, so the large replay was not rerun for v0.11; the 46- and 33-assertion Archi tests above were rerun successfully for the relationship changes.
+- Historical v0.6 validation: offline replay of the older user-provided inventory passed: 3,128 objects, 95 types, 634 folders, 3,152 relationships (3,126 compositions plus 26 SQL server-to-database serving links) and zero profiles. Existing SQL databases were retained without duplicates. Repeat sync preserved IDs and optional diagram appearance. Application took about 2.5 seconds initially and 0.9 seconds on repeat, excluding Azure/network/UI/saving. This older export contains no individual Functions, queues or topics; their collection was tested with synthetic ARM responses, not live access. This export is no longer available at its original path, so the large replay was not rerun for v0.12; the 46- and 33-assertion Archi tests above were rerun successfully for the relationship changes.
 - The optional CLI process bridge passed in actual Windows Archi/jArchi with a fake az.cmd: spaces/parentheses in its path, token JSON parsing, noisy stderr drainage, exit-code handling and timeout/child-process termination.
 - Automated tests use disposable models; no existing architecture model or live tenant credentials are used. The user separately exported a live inventory covering 3,128 objects across two subscriptions; that confirms inventory collection for that session, not a live deletion/restoration test.
 
@@ -25,6 +26,8 @@ Runtime result markers: ARCHI_AZURE_SMOKE_PASSED, ARCHI_AZURE_CHILDREN_SMOKE_PAS
 The isolated test configuration enabled only built-in Archi plugins and jArchi. Other installed plugins were excluded after an unrelated database plugin interrupted the first CLI attempt.
 
 ## Still requiring your environment
+
+- Live connection discovery with the intended app permissions and real Function binding metadata. The new tests used synthetic connection strings and disposable models; no live app settings or credentials were accessed.
 
 - Live partial-access acceptance with the intended account. Permission-denial tests above used synthetic responses; no user credentials or live permissions were changed.
 

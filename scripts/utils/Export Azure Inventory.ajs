@@ -1,7 +1,9 @@
 (function () {
     var AZURE_INCLUDE_ENTRA_APPLICATIONS = true;
+    // Read application settings/connection strings; persist only sanitized evidence.
+    var AZURE_DISCOVER_CONNECTIONS = true;
     var root = String(Java.type("java.nio.file.Paths").get(__DIR__).getParent().getParent().toAbsolutePath());
-    ["lib/core.js", "lib/azure-client.js", "lib/entra-applications.js", "lib/azure-cli.js", "lib/azure-cli-java.js", "lib/java-runtime.js", "lib/archi-adapter.js", "lib/app.js", "config/specializations.js"]
+    ["lib/core.js", "lib/azure-client.js", "lib/entra-applications.js", "lib/connections.js", "lib/azure-cli.js", "lib/azure-cli-java.js", "lib/java-runtime.js", "lib/archi-adapter.js", "lib/app.js", "config/specializations.js"]
         .forEach(function (file) { load(root + "/" + file); });
-    AzureApp.run("export", root, AZURE_SPECIALIZATIONS, {includeEntraApplications:AZURE_INCLUDE_ENTRA_APPLICATIONS});
+    AzureApp.run("export", root, AZURE_SPECIALIZATIONS, {discoverConnections: AZURE_DISCOVER_CONNECTIONS, includeEntraApplications:AZURE_INCLUDE_ENTRA_APPLICATIONS});
 }());

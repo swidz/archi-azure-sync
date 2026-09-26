@@ -101,6 +101,7 @@ var AZURE_INCLUDE_ENTRA_APPLICATIONS = true;
 ~~~
 
 - AZURE_ROOT_FOLDER controls the custom root name under both Technology & Physical and Relationships. The default creates Technology & Physical → Azure for elements and Relationships → Azure for generated links. It is a model-folder name, not a filesystem path.
+- AZURE_DISCOVER_CONNECTIONS defaults to true. It reads App Service/Function App settings and connection strings, then stores only sanitized evidence on inferred relationships. Set false to skip these reads. See [connection discovery](connections.md) for additional permissions, supported SQL/Service Bus/Storage formats and Function bindings.
 - AZURE_INCLUDE_ENTRA_APPLICATIONS defaults to true. It adds tenant-wide app registrations via Microsoft Graph; configure [Entra access](entra-applications.md) first. Set false for ARM-only runs, leaving existing app Nodes untouched. The Export utility has a separate flag with the same default.
 - AZURE_USE_SPECIALIZATIONS defaults to false. Resources are ordinary Nodes, except individual Azure Functions use Technology Function. Setting it to true explicitly enables creation/assignment of the mapped native specializations; Sync creates new profiles without images and retains existing profile images.
 
@@ -227,6 +228,10 @@ Archi stores custom images on diagram occurrences. The utility therefore formats
 
 No diagrams or connections are generated. The utility always assigns custom images without changing specialization assignments. Users who explicitly install profile icons through Manage Azure Specializations may also see inherited images through Archi; Sync preserves those profile images and never changes the diagram image-source setting.
 
+## Connection discovery
+
+Run Sync Azure.ajs with AZURE_DISCOVER_CONNECTIONS=true. Select subscriptions containing both ends of the expected connections. Review the connection relationship count, apply, and inspect the properties of the resulting Serving/Triggering/Flow relationships. Access-denied and ambiguous matches appear as warnings; normal inventory continues. No separate utility is needed. See [the connection guide](connections.md) for examples, lifecycle rules and redaction details.
+
 ## 9. Subsequent runs
 
 1. Open your model. For CLI authentication, refresh sign-in with az login if the session requires it.
@@ -262,6 +267,8 @@ Version 0.6 adds child collectors and service relationships. Preserve any local 
 Version 0.5 makes custom icons entirely optional. If you previously customized image/text positions in Sync Azure.ajs, move those values into Apply Azure Appearance.ajs. Existing custom images are retained, not removed or reformatted by Sync.
 
 Run Sync Azure on a copy of the existing model first. The default next run reorganizes scoped elements and detaches script-owned specialization assignments without adding custom images. It preserves IDs, documentation and diagram layout, reuses existing containment relationships and creates any missing ones. Save/reopen and run again to verify no duplicate concepts or folders before using the updated script for your regular model.
+
+Version 0.12 enables connection discovery by default. Replace all libraries and entry points together. Configuration reads require Microsoft.Web/sites/config/list/action; without it, warnings are reported and the rest of synchronization continues. Use AZURE_DISCOVER_CONNECTIONS=false to leave existing connection relationships untouched.
 
 Version 0.11 adds automatic partial synchronization. Replace all library files together; run Sync Azure.ajs normally and inspect the Scripts output for warnings. It adds no plugin or authentication requirement.
 

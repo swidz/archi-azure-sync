@@ -1,0 +1,29 @@
+{
+  "status": "passed",
+  "archi": "5.10.0.202608252016",
+  "jArchi": "1.12.0.202604070605",
+  "checks": [
+    "Creates SQL/Storage Serving, queue Triggering and topic Flow relationships",
+    "Actual Archi accepts binding-directed relationships to Technology Functions",
+    "Trigger and output binding directions are correct",
+    "Multiple named SQL connections share one relationship with both evidence entries",
+    "Export and relationship metadata contain sanitized allowlisted fields only",
+    "Cross-subscription relationship folder follows the actual source database",
+    "Flow relationship folder follows its source Function",
+    "Connection relationships record actual Archi endpoint GUIDs",
+    "Repeat discovery reuses relationships by endpoint GUIDs and type",
+    "Repeat sync clears names and repairs folder/cache without replacing the link",
+    "Denied app settings preserve the existing trigger relationship and its timestamps",
+    "Readable connection strings still update under partial configuration coverage",
+    "Disabling connection discovery leaves all previous inferred connections unchanged",
+    "Complete configuration removal soft-deletes only the inferred connections",
+    "Repeated configuration absence retains the original deletion date",
+    "Configuration restoration reuses relationship GUIDs and creation dates",
+    "Manual matching links are reused without changing names, properties or folders",
+    "Unselected target subscription protects the cross-subscription relationship",
+    "Connection discovery creates no diagrams or specializations",
+    "Output reports denied configuration without exposing credentials",
+    "Saved Archi model contains no synthetic secret values",
+    "Sanitized connection properties and relationship identity survive save/reload"
+  ]
+}

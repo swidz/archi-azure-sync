@@ -1,0 +1,66 @@
+/* Synthetic configuration only. Uses disposable models and the actual Archi relationship validator. */
+(function(){
+    var Paths=Java.type('java.nio.file.Paths'),root=String(Paths.get(__DIR__).getParent().toAbsolutePath());
+    ['lib/core.js','lib/azure-client.js','lib/connections.js','lib/java-runtime.js','lib/archi-adapter.js'].forEach(function(f){load(root+'/'+f);});
+    var C=AzureCore,D=AzureConnections,checks=[];function ok(v,message){C.assert(v,message);checks.push(message);}
+    var tenant='aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa',sub='11111111-1111-1111-1111-111111111111',sub2='22222222-2222-2222-2222-222222222222',clock='2026-09-26T10:00:00Z';
+    var info={tenantId:tenant,subscriptionId:sub,displayName:'Applications'},info2={tenantId:tenant,subscriptionId:sub2,displayName:'Data'};
+    var prefix='/subscriptions/'+sub+'/resourceGroups/apps';
+    function raw(type,name){return {id:prefix+'/providers/'+type.split('/')[0]+'/'+type.split('/')[1]+'/'+name,type:type,name:name};}
+    function child(p,c,name){return {id:p.id+'/'+c+'/'+name,type:p.type+'/'+c,name:name};}
+    var site=raw('Microsoft.Web/sites','app');site.kind='functionapp';var fn=child(site,'functions','handler'),bus=raw('Microsoft.ServiceBus/namespaces','bus'),queue=child(bus,'queues','orders'),topic=child(bus,'topics','processed');
+    var sql=raw('Microsoft.Sql/servers','sql-prod');sql.id=sql.id.replace(sub,sub2);var db=child(sql,'databases','Orders'),storage=raw('Microsoft.Storage/storageAccounts','storage123');
+    var all=[site,fn,bus,queue,topic,sql,db,storage],map=C.mappings([['Microsoft.Web/sites/functions','technology-function']]),logs=[];
+    var busValue='Endpoint=sb://bus.servicebus.windows.net/;SharedAccessKey=SECRET',dbValue='Server=tcp:sql-prod.database.windows.net,1433;Database=Orders;Password="SECRET;escaped";User ID=SECRET';
+    function body(p){return {status:200,body:{properties:p}};}
+    function build(mode){
+        var resources=all.map(function(r){return C.normalize(r,r.id.indexOf('/subscriptions/'+sub2+'/')===0?info2:info,tenant);});
+        var snapshot={schemaVersion:3,tenantId:tenant,subscriptionIds:[sub,sub2],completedSubscriptions:[sub,sub2],resources:resources,confirmedMissing:[],collectedAt:clock,partial:false,warnings:[]};
+        var settings=mode==='remove'?{}:{Bus:busValue,Storage:'AccountName=storage123;AccountKey=SECRET'};
+        var bindings=mode==='remove'?[]:[{type:'serviceBusTrigger',name:'input',connection:'Bus',queueName:'orders'},{type:'serviceBus',name:'output',connection:'Bus',topicName:'processed',direction:'out'}];
+        var denied={status:403,body:{error:{message:'SECRET'}}};
+        var responses=[mode==='denied'?denied:body(settings),body(mode==='remove'?{}:{Orders:{value:dbValue},Backup:{value:dbValue}})];
+        if(mode!=='denied')responses.push({status:200,body:{value:[{id:fn.id,properties:{config:{bindings:bindings},files:{'code.js':'SECRET'}}}]}});
+        var io={now:function(){return Date.parse(clock);},sleep:function(){},request:function(method,url){C.assert(responses.length>0,'Unexpected synthetic configuration call');return responses.shift();}};
+        var token={tenantId:tenant,resource:'arm',accessToken:'synthetic',expiresAt:io.now()+3600000};
+        snapshot.connections=D.create(io,token,AzureClient.create(io,token),function(s){logs.push(s);}).inventory(snapshot);
+        C.assert(!responses.length,'Not all expected configuration requests consumed');return snapshot;
+    }
+    var m=$.model.create('Connection discovery smoke');m.setAsCurrent();
+    function sync(snapshot,enabled){var p=C.plan(AzureArchi.readElements(m),snapshot,map);if(enabled!==false)D.plan(snapshot,p,AzureArchi.isAllowedRelationship,function(s){logs.push(s);});var r=AzureArchi.apply(m,p,{});return {plan:p,result:r};}
+    function element(id){var e;$(m).find('element').each(function(x){if(String(x.prop('Azure-ObjectId'))===id)e=x;});return e;}
+    function rel(a,b,t){var e;$(m).find('relationship').each(function(x){if(String(x.source.id)===String(element(a).id)&&String(x.target.id)===String(element(b).id)&&String(x.type)===t)e=x;});return e;}
+    function state(r){return JSON.stringify([String(r.id),String(r.name),String($(r).parent().first().id),String(r.prop('IsDeleted')),String(r.prop('LastSyncDate')),String(r.prop('LastSyncTime')),String(r.prop('Azure-ConnectionEvidence'))]);}
+    function ancestry(e){var names=[],p=$(e).parent().first();while(p&&String(p.type)==='folder'){names.unshift(String(p.name));p=$(p).parent().first();}return names;}
+    var first=build('normal'),created=sync(first),trigger=rel(queue.id,fn.id,'triggering-relationship'),flow=rel(fn.id,topic.id,'flow-relationship'),serving=rel(db.id,site.id,'serving-relationship');
+    ok(created.result.connections.created===4,'Creates SQL/Storage Serving, queue Triggering and topic Flow relationships');
+    ok(String(element(fn.id).type)==='technology-function' && trigger && flow,'Actual Archi accepts binding-directed relationships to Technology Functions');
+    ok(String(trigger.source.id)===String(element(queue.id).id) && String(flow.source.id)===String(element(fn.id).id),'Trigger and output binding directions are correct');
+    ok(JSON.parse(String(serving.prop('Azure-ConnectionEvidence'))).length===2,'Multiple named SQL connections share one relationship with both evidence entries');
+    ok(!JSON.stringify(first.connections).includes('SECRET') && !String(serving.prop('Azure-ConnectionString')).includes('SECRET') && String(serving.prop('Azure-ConnectionSanitized'))==='yes','Export and relationship metadata contain sanitized allowlisted fields only');
+    ok(ancestry(serving).slice(1).join('|')==='Azure|Data ['+sub2+']|apps|Microsoft.Sql/servers/databases','Cross-subscription relationship folder follows the actual source database');
+    ok(ancestry(flow).slice(-1)[0]==='Microsoft.Web/sites/functions','Flow relationship folder follows its source Function');
+    ok(String(serving.prop('Azure-SourceElementId'))===String(element(db.id).id) && String(serving.prop('Azure-TargetElementId'))===String(element(site.id).id),'Connection relationships record actual Archi endpoint GUIDs');
+    var tid=String(trigger.id),sid=String(serving.id),createdAt=String(serving.prop('CreatedDate'));
+    var again=sync(build('normal'));ok(again.result.connections.created===0 && String(serving.id)===sid && String(trigger.id)===tid,'Repeat discovery reuses relationships by endpoint GUIDs and type');
+    serving.name='custom';serving.prop('Azure-SourceElementId','stale');var top=$(serving).parent().first();while(String($(top).parent().first().type)==='folder')top=$(top).parent().first();top.add(serving);
+    sync(build('normal'));ok(String(serving.name)==='' && String(serving.prop('Azure-SourceElementId'))===String(element(db.id).id) && ancestry(serving).slice(-1)[0]==='Microsoft.Sql/servers/databases','Repeat sync clears names and repairs folder/cache without replacing the link');
+    var before=state(trigger);clock='2026-09-27T12:00:00Z';var deniedSync=sync(build('denied'));
+    ok(deniedSync.plan.partial && state(trigger)===before,'Denied app settings preserve the existing trigger relationship and its timestamps');
+    ok(String(serving.prop('Azure-ConnectionCoverage'))==='partial' && JSON.parse(String(serving.prop('Azure-ConnectionEvidence'))).length===2,'Readable connection strings still update under partial configuration coverage');
+    var preserved=state(trigger);clock='2026-09-28T12:00:00Z';sync(build('remove'),false);ok(state(trigger)===preserved,'Disabling connection discovery leaves all previous inferred connections unchanged');
+    var removed=sync(build('remove'));ok(removed.result.connections.deleted===4 && String(trigger.prop('IsDeleted'))==='yes' && String(serving.prop('IsDeleted'))==='yes','Complete configuration removal soft-deletes only the inferred connections');
+    var deletedAt=String(trigger.prop('DeletedDate'));clock='2026-09-29T12:00:00Z';sync(build('remove'));ok(String(trigger.prop('DeletedDate'))===deletedAt,'Repeated configuration absence retains the original deletion date');
+    sync(build('normal'));ok(String(trigger.id)===tid && String(serving.id)===sid && String(trigger.prop('IsDeleted'))==='no' && String(trigger.prop('DeletedDate'))==='' && String(serving.prop('CreatedDate'))===createdAt,'Configuration restoration reuses relationship GUIDs and creation dates');
+    // A user's matching relationship remains unowned and unchanged.
+    flow.delete();var manual=m.createRelationship('flow-relationship','Manual flow',element(fn.id),element(topic.id));manual.prop('Keep','value');var manualFolder=String($(manual).parent().first().id);
+    var reused=sync(build('normal'));ok(reused.result.connections.reusedUnchanged===1 && String(manual.name)==='Manual flow' && String(manual.prop('Keep'))==='value' && String($(manual).parent().first().id)===manualFolder,'Manual matching links are reused without changing names, properties or folders');
+    // Selecting only the application subscription does not retire cross-subscription knowledge.
+    var narrow=build('remove');narrow.resources=narrow.resources.filter(function(r){return r.subscriptionId===sub;});narrow.subscriptionIds=[sub];narrow.completedSubscriptions=[sub];var dbState=state(serving);sync(narrow);ok(state(serving)===dbState,'Unselected target subscription protects the cross-subscription relationship');
+    ok($(m).find('view').size()===0 && m.specializations.length===0,'Connection discovery creates no diagrams or specializations');
+    ok(!logs.join('').includes('SECRET') && logs.some(function(s){return s.indexOf('HTTP 403')>=0;}),'Output reports denied configuration without exposing credentials');
+    var dir=AzureJava.resolve(root,'work'),file=dir+'/connections-smoke.archimate';m.save(file);var xml=AzureJava.read(file);ok(!xml.includes('SECRET'),'Saved Archi model contains no synthetic secret values');
+    var loaded=$.model.load(file),found=false;$(loaded).find('relationship').each(function(r){if(String(r.id)===sid)found=String(r.prop('Azure-ConnectionSanitized'))==='yes';});ok(found,'Sanitized connection properties and relationship identity survive save/reload');
+    AzureJava.write(dir+'/connections-smoke-result.json',JSON.stringify({status:'passed',archi:String($.process.release.archiVersion),jArchi:String($.process.release.jArchiVersion),checks:checks},null,2));
+    console.log('ARCHI_CONNECTIONS_SMOKE_PASSED');
+}());

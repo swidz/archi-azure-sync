@@ -54,3 +54,7 @@ Invalid tenant/object identity, unsafe pagination, duplicate identities, incompa
 - [Microsoft Graph error responses](https://learn.microsoft.com/en-us/graph/errors): 401/403 indicate authentication/access failure, not confirmed absence.
 - [Microsoft Graph authorization troubleshooting](https://learn.microsoft.com/en-us/graph/resolve-auth-errors): permissions, consent and Conditional Access can prevent reads or token acquisition.
 - [ARM resources by resource group](https://learn.microsoft.com/en-us/rest/api/resources/resources/list-by-resource-group?view=rest-resources-2021-04-01): the group-level fallback endpoint.
+
+## Connection configuration coverage
+
+Version 0.12 adds separate per-app [connection discovery](connections.md). A denied settings or binding read does not invalidate complete ARM resource coverage; it protects prior inferred connection evidence for that app. The overall run reports partial status, while readable resource and connection results can still be applied. Raw connection strings and error response bodies never enter warnings or exports.

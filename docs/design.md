@@ -17,6 +17,7 @@ The adapter uses java.net.HttpURLConnection through Java.type. Protocol logic, s
 - lib/core.js — identity, scope, mappings, properties and change planning.
 - lib/azure-client.js — device authorization, inventory, pagination/retries, discovery and deletion verification.
 - lib/entra-applications.js — projected Microsoft Graph application collection, validated pagination, individual missing-object checks and isolated tenant-scoped planning.
+- lib/connections.js — transient configuration reads, allowlist-based sanitization, exact target matching, binding direction and per-app evidence coverage.
 - lib/java-runtime.js — Java HTTPS and file operations.
 - lib/azure-cli.js — CLI session/token validation and safe command construction.
 - lib/azure-cli-java.js — cross-platform CLI discovery and bounded subprocess execution; stdout stays in memory and stderr is discarded.
@@ -60,7 +61,7 @@ The older overlay is historical context. It is not a dependency and no old plugi
 
 Real-runtime tests verify managed folders, relocation, custom images, Top Center placement, optional profiles, save/reload and relationship preservation. Model traversal normalizes diagram instances to underlying concepts, avoiding duplicate inventory entries when elements appear in views. objectRefs() identifies visual occurrences; .concept alone cannot distinguish a concept proxy from a diagram object.
 
-The child API versions are pinned to the documented control-plane contracts. Individual child absence checks use those versions without depending on provider type-discovery coverage. A child collection can paginate only within its exact collection path. Child payloads are projected onto resource identity fields, excluding function files, config, invocation URLs and other payload content.
+The child API versions are pinned to the documented control-plane contracts. Individual child absence checks use those versions without depending on provider type-discovery coverage. A child collection can paginate only within its exact collection path. The resource collector projects child payloads onto resource identity fields. Enabled connection discovery separately reads only supported binding fields from Function config; raw config, source files and invocation URLs are never persisted.
 
 See [Entra application design and API contracts](entra-applications.md) for projected fields, consent, scope and export format.
 
@@ -79,3 +80,7 @@ See [Entra application design and API contracts](entra-applications.md) for proj
 - [Subscriptions Get](https://learn.microsoft.com/en-us/rest/api/resources/subscriptions/get?view=rest-resources-2022-12-01)
 - [Providers List](https://learn.microsoft.com/en-us/rest/api/resources/providers/list?view=rest-resources-2021-04-01)
 - [Resource Graph overview](https://learn.microsoft.com/en-us/azure/governance/resource-graph/overview)
+
+## Connection relationships
+
+See [connection discovery](connections.md). Raw settings are parsed and discarded inside the collector; its public snapshot contains only reconstructed evidence. Target matching uses current selected ARM resources. Configuration warnings are separate from ARM resource coverage. The adapter independently maintains connection-owned relationships, matching actual endpoint GUIDs/type, merging evidence for partially read apps and retiring absent evidence only with complete per-app coverage and reconciled endpoints. Relationships follow their actual source folders across selected subscriptions. Archi relationship validation occurs before the preview. Manual links remain unowned and unchanged.
