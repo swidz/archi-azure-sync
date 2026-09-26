@@ -80,14 +80,14 @@ test('ambiguous child 404 or access loss does not permit soft deletion',()=>{
   assert.equal(s.partial,true);assert.deepEqual(s.confirmedMissing,[]);assert.match(s.warnings[0].message,/Ambiguous|403/);
  }
 });
-test('service relations add namespace composition, Function assignment and SQL server serving',()=>{
+test('service relations add namespace composition, Function serving and SQL server serving',()=>{
  const resources=[{id:'/subscriptions/'+H.sub,type:'Microsoft.Resources/subscriptions',name:'sub'},{...rg,type:'Microsoft.Resources/resourceGroups'},sb,queue,topic,app,fn,sql,db].map(r=>C.normalize(r,H.info,H.tenant));
  const mapping=C.mappings([[fn.type,'technology-function']]),plan=C.plan([],H.snapshot(resources),mapping),k=r=>C.identity(H.tenant,r.id);
  const find=(a,b)=>plan.relationships.pairs.filter(r=>r.source===k(a)&&r.target===k(b));
  assert.equal(plan.operations.find(o=>o.properties['Azure-ObjectId']===fn.id).base,'technology-function');
  assert.equal(plan.operations.find(o=>o.properties['Azure-ObjectId']===fn.id).properties['Azure-ParentObjectId'],app.id);
  assert.equal(find(sb,queue)[0].type,'composition-relationship');assert.equal(find(sb,topic)[0].type,'composition-relationship');
- assert.equal(find(app,fn)[0].type,'assignment-relationship');assert.equal(find(sql,db)[0].type,'serving-relationship');
+ assert.equal(find(app,fn)[0].type,'serving-relationship');assert.equal(find(sql,db)[0].type,'serving-relationship');
  assert.equal(find(rg,fn).length,0);assert.equal(find(rg,db)[0].type,'composition-relationship');assert.equal(plan.relationships.pairs.length,11);
  assert.ok(plan.relationships.pairs.every(r=>r.name===''));
 });

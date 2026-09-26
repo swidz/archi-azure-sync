@@ -150,9 +150,9 @@ If a desired folder name is already occupied by an unrelated, unowned folder, th
 The sync creates unnamed ArchiMate **composition** relationships, with these directions:
 
 - Subscription Node → each resource group Node in that subscription.
-- Resource group Node → each resource Node belonging to that group, including queues/topics and SQL databases. Individual Technology Functions are linked through their Function App using assignment; Node-to-Technology-Function composition is invalid in Archi.
+- Resource group Node → each resource Node belonging to that group, including queues/topics and SQL databases. Individual Technology Functions are linked through their Function App using Serving; Node-to-Technology-Function composition is invalid in Archi.
 
-All synced relationship Name fields are blank. On each applied sync, existing names are cleared from script-owned composition, assignment and serving links in the selected tenant/subscriptions, including SQL server-to-database links, custom labels and soft-deleted links. Their relationship GUIDs, types, source/target references and creation dates remain intact. Manually authored matching links and links outside the selected scope keep their names.
+All synced relationship Name fields are blank. On each applied sync, existing names are cleared from script-owned composition, assignment and serving links in the selected tenant/subscriptions, including SQL server-to-database links, custom labels and soft-deleted links. Name cleanup preserves relationship GUIDs, types, source/target references and creation dates. The Function relationship type migration described below is a separate operation. Manually authored matching links and links outside the selected scope keep their names.
 
 Find generated links under **Relationships → Azure → Source subscription → Source resource group (or Other) → Source object type**. Archi stores relationship concepts in its separate Relationships category. Composition, assignment and serving links all use their source element's hierarchy. The full source ARM type is one folder label, including slashes. Composition links express whole-to-part containment, with the composition diamond at the parent. Each run searches the whole model using the actual **source element GUID and target element GUID**, plus relationship type. Renaming or moving a link does not cause a duplicate; different relationship types between the same endpoints remain distinct. Manual matching relationships retain their labels, properties and folders. Script-owned links are retained with deletion timestamps when either endpoint disappears and restored when both endpoints return. Unselected subscriptions are untouched.
 
@@ -175,7 +175,7 @@ Relationships
             ├── Microsoft.ServiceBus/namespaces
             │   └── [Composition: namespace → queue or topic]
             ├── Microsoft.Web/sites
-            │   └── [Assignment: Function App → function]
+            │   └── [Serving: Function App → function]
             └── Microsoft.Sql/servers
                 └── [Serving: SQL server → database]
 ~~~
@@ -187,12 +187,12 @@ The source element supplies the subscription, resource group and object type; th
 | Parent | Imported child | Archi type | Relationship from parent |
 | --- | --- | --- | --- |
 | Service Bus namespace | Queue or topic | Node | Composition |
-| Function App | Individual function | Technology Function | Assignment |
+| Function App | Individual function | Technology Function | Serving |
 | SQL logical server | Database, including master when returned | Node | Serving |
 
 These are collected automatically by Sync and Export Azure Inventory. No additional setup script is required. Existing SQL databases are matched by ARM ID and receive serving relationships without duplicate Nodes. Find children under their existing subscription/resource-group/type folders; Azure-ParentObjectId identifies their parent.
 
-Archi rejects composition from a Node to a Technology Function. Assignment is the valid connection for a Function App Node performing a Technology Function. If you prefer Node plus composition, change the Microsoft.Web/sites/functions row in config/specializations.js to node before the first import. Existing concept type changes require an explicit manual migration in Archi.
+Archi rejects composition from a Node to a Technology Function. Serving expresses the Function App Node providing its runtime to the individual Technology Function. If you prefer Node plus composition, change the Microsoft.Web/sites/functions row in config/specializations.js to node before the first import. Existing concept type changes require an explicit manual migration in Archi.
 
 See [child-resource discovery](child-resources.md) for permissions, scope and failure handling.
 
@@ -267,6 +267,8 @@ Version 0.6 adds child collectors and service relationships. Preserve any local 
 Version 0.5 makes custom icons entirely optional. If you previously customized image/text positions in Sync Azure.ajs, move those values into Apply Azure Appearance.ajs. Existing custom images are retained, not removed or reformatted by Sync.
 
 Run Sync Azure on a copy of the existing model first. The default next run reorganizes scoped elements and detaches script-owned specialization assignments without adding custom images. It preserves IDs, documentation and diagram layout, reuses existing containment relationships and creates any missing ones. Save/reopen and run again to verify no duplicate concepts or folders before using the updated script for your regular model.
+
+Version **0.12.1** changes Function App → Technology Function relationships from **Assignment** to **Serving**. Run **Sync Azure.ajs** and apply the preview. Legacy script-owned links are converted automatically when both endpoints were read in the selected scope; no manual diagram redraw is needed. Existing diagram connections and their layout, source/target element GUIDs, creation timestamps, documentation and custom properties are retained. jArchi assigns the converted relationship a new GUID once, then later syncs reuse it. Manual relationships and unreadable or unselected Function links are not converted. The Scripts output and completion dialog report the conversion count. No diagrams are generated.
 
 Version 0.12 enables connection discovery by default. Replace all libraries and entry points together. Configuration reads require Microsoft.Web/sites/config/list/action; without it, warnings are reported and the rest of synchronization continues. Use AZURE_DISCOVER_CONNECTIONS=false to leave existing connection relationships untouched.
 

@@ -1,0 +1,65 @@
+/* Disposable model and synthetic inventory only; never reads a user model or Azure. */
+(function () {
+    var Paths=Java.type('java.nio.file.Paths'),root=String(Paths.get(__DIR__).getParent().toAbsolutePath());
+    ['lib/core.js','lib/java-runtime.js','lib/archi-adapter.js'].forEach(function(f){load(root+'/'+f);});
+    var C=AzureCore,checks=[];function ok(value,message){C.assert(value,message);checks.push(message);}
+    var tenant='aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa',otherTenant='bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb';
+    var sub='11111111-1111-1111-1111-111111111111',otherSub='22222222-2222-2222-2222-222222222222';
+    var appId='/subscriptions/'+sub+'/resourceGroups/demo/providers/Microsoft.Web/sites/app',fnId=appId+'/functions/run';
+    var mapping=C.mappings([['Microsoft.Web/sites/functions','technology-function']]);
+    var resources=[{id:appId,type:'Microsoft.Web/sites',name:'app',kind:'functionapp'},
+        {id:fnId,type:'Microsoft.Web/sites/functions',name:'run'}].map(function(r){return C.normalize(r,{subscriptionId:sub,displayName:'Synthetic'},tenant);});
+    function snapshot(){return {schemaVersion:3,tenantId:tenant,subscriptionIds:[sub],completedSubscriptions:[sub],resources:resources,confirmedMissing:[],collectedAt:'2026-09-26T10:00:00Z'};}
+    var m=$.model.create('Function Serving migration smoke');m.setAsCurrent();
+    function sync(s){return AzureArchi.apply(m,C.plan(AzureArchi.readElements(m),s || snapshot(),mapping));}
+    function elements(id){var found;$(m).find('element').each(function(e){e=e.concept || e;if(String(e.prop('Azure-ObjectId'))===id)found=e;});return found;}
+    function relations(model){var found=[],seen={};$(model || m).find('relationship').each(function(r){r=r.concept || r;var id=String(r.id);if(!seen[id]){seen[id]=true;found.push(r);}});return found;}
+    function relation(id,model){return relations(model).filter(function(r){return String(r.id)===id;})[0];}
+    function legacy(r){r.type='assignment-relationship';r.prop('Azure-RelationKind','assignment');return relation(String(r.id));}
+    var first=sync(),app=elements(appId),fn=elements(fnId),current=relations()[0],id=String(current.id);
+    ok(first.relationships.created===1 && first.relationships.migrated===0 && String(current.type)==='serving-relationship','Fresh import creates a Serving relationship from Function App to Technology Function');
+    ok(String(current.source.id)===String(app.id) && String(current.target.id)===String(fn.id),'Serving direction is Function App to individual Function');
+    ok($(m).find('view').size()===0,'Fresh sync creates no diagrams');
+    current=legacy(current);id=String(current.id);current.documentation='Retain documentation';current.prop('UserNote','Retain property');
+    current.prop('Azure-SourceElementId','stale-source');current.prop('Azure-TargetElementId','stale-target');current.name='Old performs label';
+    var createdDate=String(current.prop('CreatedDate')),createdTime=String(current.prop('CreatedTime')),parent=String($(current).parent().first().id);
+    // These two views are test fixtures, representing diagrams already made by a user.
+    var v1=m.createArchimateView('User diagram one'),a1=v1.add(app,20,20,180,70),f1=v1.add(fn,20,180,180,70),c1=v1.add(current,a1,f1);
+    var v2=m.createArchimateView('User diagram two'),a2=v2.add(app,20,20,180,70),f2=v2.add(fn,240,20,180,70),c2=v2.add(current,a2,f2);
+    a1.imagePosition=8;f1.textPosition=0;
+    var c1Id=String(c1.id),c2Id=String(c2.id),bounds=JSON.stringify([a1.bounds,f1.bounds,a2.bounds,f2.bounds]);
+    var partial=snapshot();partial.partial=true;partial.warnings=[{scope:appId,message:'Function list denied'}];partial.completedSubscriptions=[];partial.resources=[resources[0]];
+    ok(sync(partial).relationships.migrated===0 && String(relation(id).type)==='assignment-relationship' && String(relation(id).name)==='Old performs label','Unreadable Function scope preserves the legacy link without migration');
+    var unselected=snapshot();unselected.subscriptionIds=[otherSub];unselected.completedSubscriptions=[otherSub];unselected.resources=[];
+    ok(sync(unselected).relationships.migrated===0 && String(relation(id).type)==='assignment-relationship','Unselected subscription links are not migrated');
+    var other=snapshot();other.tenantId=otherTenant;other.resources=[];
+    ok(sync(other).relationships.migrated===0 && String(relation(id).type)==='assignment-relationship','Another tenant cannot migrate the legacy link');
+    var originalId=id,migrated=sync();current=c1.concept;id=String(current.id);
+    ok(migrated.relationships.migrated===1 && migrated.relationships.created===0 && relations().length===1,'Readable legacy assignment converts without creating a duplicate relationship');
+    ok(String(current.type)==='serving-relationship' && String(current.prop('Azure-RelationKind'))==='serving','Migration updates both the Archi type and sync relationship kind');
+    ok(id!==originalId && !relation(originalId) && String(current.source.id)===String(app.id) && String(current.target.id)===String(fn.id),'Public jArchi conversion replaces the relationship GUID once while retaining endpoint GUIDs');
+    ok(String(c1.id)===c1Id && String(c2.id)===c2Id && String(c1.concept.id)===id && String(c2.concept.id)===id && String(c1.concept.type)==='serving-relationship' && String(c2.concept.type)==='serving-relationship','Both existing diagram connections reference the converted Serving relationship');
+    ok(String(current.prop('CreatedDate'))===createdDate && String(current.prop('CreatedTime'))===createdTime && String(current.documentation)==='Retain documentation' && String(current.prop('UserNote'))==='Retain property','Migration retains creation timestamps, documentation and custom properties');
+    ok(String(current.prop('Azure-SourceElementId'))===String(app.id) && String(current.prop('Azure-TargetElementId'))===String(fn.id),'Migration matches actual endpoints and refreshes stale cached GUID properties');
+    ok(String($(current).parent().first().id)===parent && String(current.name)==='','Converted link remains in the source hierarchy with a blank name');
+    ok($(m).find('view').size()===2 && bounds===JSON.stringify([a1.bounds,f1.bounds,a2.bounds,f2.bounds]) && a1.imagePosition===8 && f1.textPosition===0,'Sync preserves existing diagram layout and appearance without generating views');
+    var repeated=sync();ok(repeated.relationships.migrated===0 && repeated.relationships.created===0 && relations().length===1 && String(relations()[0].id)===id,'Repeated sync reuses the same Serving relationship');
+    var manual=m.createRelationship('assignment-relationship','Manual assignment',app,fn);manual.prop('UserNote','manual');
+    var inferred=m.createRelationship('assignment-relationship','Separate inferred link',app,fn);inferred.prop('Azure-SyncManagedBy',C.OWNER);inferred.prop('Azure-RelationKind','connection');
+    var manualParent=String($(manual).parent().first().id);sync();
+    ok(String(manual.type)==='assignment-relationship' && String(manual.name)==='Manual assignment' && !manual.prop('Azure-SyncManagedBy') && String(manual.prop('UserNote'))==='manual' && String($(manual).parent().first().id)===manualParent,'Manual Assignment relationships retain their type, metadata and folder');
+    ok(String(inferred.type)==='assignment-relationship' && String(inferred.name)==='Separate inferred link' && String(inferred.prop('Azure-RelationKind'))==='connection','Migration is limited to structural links and leaves separately managed connections alone');
+    // An existing manually drawn Serving link must not suppress migration of a legacy drawn Assignment.
+    var manualServing=m.createRelationship('serving-relationship','Manual serving',app,fn);current=legacy(current);
+    var count=relations().length,both=sync();current=c1.concept;id=String(current.id);
+    ok(both.relationships.migrated===1 && both.relationships.created===0 && relations().length===count && String(current.type)==='serving-relationship' && String(manualServing.name)==='Manual serving' && !manualServing.prop('Azure-SyncManagedBy'),'Pre-existing Serving links remain intact and do not prevent conversion or cause new duplicates');
+    var missing=snapshot();missing.resources=[resources[0]];missing.confirmedMissing=[C.identity(tenant,fnId)];missing.collectedAt='2026-09-27T12:00:00Z';sync(missing);
+    ok(String(relation(id).prop('IsDeleted'))==='yes' && String(relation(id).prop('DeletedDate'))==='2026-09-27','Converted Serving link follows normal endpoint soft-deletion');
+    sync();ok(String(relation(id).prop('IsDeleted'))==='no' && String(relation(id).prop('DeletedDate'))==='' && String(relation(id).id)===id,'Restoration retains the migrated relationship identity');
+    var dir=AzureJava.resolve(root,'work');Java.type('java.nio.file.Files').createDirectories(Paths.get(dir));m.save(dir+'/function-serving-smoke.archimate');var loaded=$.model.load(dir+'/function-serving-smoke.archimate');
+    ok(String(relation(id,loaded).type)==='serving-relationship' && String(relation(id,loaded).prop('Azure-RelationKind'))==='serving','Converted type and relationship GUID survive save/reload');
+    var refs=0;$(relation(id,loaded)).objectRefs().each(function(r){if(String(r.concept.id)===id && String(r.concept.type)==='serving-relationship')refs++;});
+    ok(refs===2,'Both migrated diagram references survive save/reload');
+    AzureJava.write(dir+'/function-serving-smoke-result.json',JSON.stringify({status:'passed',archi:String($.process.release.archiVersion),jArchi:String($.process.release.jArchiVersion),checks:checks},null,2));
+    console.log('ARCHI_FUNCTION_SERVING_SMOKE_PASSED');
+}());

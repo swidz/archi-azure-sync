@@ -1,0 +1,29 @@
+{
+  "status": "passed",
+  "archi": "5.10.0.202608252016",
+  "jArchi": "1.12.0.202604070605",
+  "checks": [
+    "Fresh import creates a Serving relationship from Function App to Technology Function",
+    "Serving direction is Function App to individual Function",
+    "Fresh sync creates no diagrams",
+    "Unreadable Function scope preserves the legacy link without migration",
+    "Unselected subscription links are not migrated",
+    "Another tenant cannot migrate the legacy link",
+    "Readable legacy assignment converts without creating a duplicate relationship",
+    "Migration updates both the Archi type and sync relationship kind",
+    "Public jArchi conversion replaces the relationship GUID once while retaining endpoint GUIDs",
+    "Both existing diagram connections reference the converted Serving relationship",
+    "Migration retains creation timestamps, documentation and custom properties",
+    "Migration matches actual endpoints and refreshes stale cached GUID properties",
+    "Converted link remains in the source hierarchy with a blank name",
+    "Sync preserves existing diagram layout and appearance without generating views",
+    "Repeated sync reuses the same Serving relationship",
+    "Manual Assignment relationships retain their type, metadata and folder",
+    "Migration is limited to structural links and leaves separately managed connections alone",
+    "Pre-existing Serving links remain intact and do not prevent conversion or cause new duplicates",
+    "Converted Serving link follows normal endpoint soft-deletion",
+    "Restoration retains the migrated relationship identity",
+    "Converted type and relationship GUID survive save/reload",
+    "Both migrated diagram references survive save/reload"
+  ]
+}

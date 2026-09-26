@@ -23,18 +23,18 @@
     function hierarchy(e){return trail(e).slice(1).map(function(p){return String(p.name);}).join('|');}
     function folderIds(){var ids=[];$(m).find('folder').each(function(p){ids.push(String(p.id));});return ids.sort().join(',');}
     var first=sync();ok(first.result.relationships.created===11 && relationships().length===11,'Creates all valid resource-group and service relationships');
-    ok(relationships().every(function(r){return String(r.name)==='';}),'New composition, assignment and SQL serving relationships have blank names');
+    ok(relationships().every(function(r){return String(r.name)==='';}),'New composition and Function/SQL serving relationships have blank names');
     var relationFolder=trail(relationships()[0])[1],relationFolderId=String(relationFolder.id),relationLayer=trail(relationships()[0])[0];
     ok(String(relationFolder.name)==='Azure' && String($(relationLayer).parent().first().id)===String(m.id),'Generated relationships are in Relationships / Azure');
     ok(relationships().every(function(r){return hierarchy(r)===hierarchy(r.source);}), 'Every relationship mirrors its source object folder hierarchy');
     var expectedPrefix='Azure|Synthetic ['+sub+']|demo|';
-    ok(hierarchy(link(bus,q,'composition-relationship'))===expectedPrefix+'Microsoft.ServiceBus/namespaces' && hierarchy(link(app,f,'assignment-relationship'))===expectedPrefix+'Microsoft.Web/sites' && hierarchy(link(sql,db,'serving-relationship'))===expectedPrefix+'Microsoft.Sql/servers','Service relationships are grouped by source type rather than child type');
+    ok(hierarchy(link(bus,q,'composition-relationship'))===expectedPrefix+'Microsoft.ServiceBus/namespaces' && hierarchy(link(app,f,'serving-relationship'))===expectedPrefix+'Microsoft.Web/sites' && hierarchy(link(sql,db,'serving-relationship'))===expectedPrefix+'Microsoft.Sql/servers','Service relationships are grouped by source type rather than child type');
     ok(hierarchy(link({id:'/subscriptions/'+sub},rg,'composition-relationship'))==='Azure|Synthetic ['+sub+']|Other|Microsoft.Resources/subscriptions','Subscription-source links use Other even though the target is a resource group');
     ok(relationships().every(function(r){return String(r.prop('Azure-SourceElementId'))===String(r.source.id) && String(r.prop('Azure-TargetElementId'))===String(r.target.id);}), 'Generated relationships record actual source and target Archi GUIDs');
     ok(String(concept(f.id).type)==='technology-function','Individual Function uses Technology Function');
     ok(String(concept(f.id).prop('Azure-ParentObjectId'))===app.id,'Child records parent Azure ID');
     ok(!!link(bus,q,'composition-relationship') && !!link(bus,t,'composition-relationship'),'Service Bus consists of queues and topics');
-    ok(!!link(app,f,'assignment-relationship') && !link(rg,f,'composition-relationship'),'Function App assigns Technology Function without invalid Node composition');
+    ok(!!link(app,f,'serving-relationship') && !link(rg,f,'composition-relationship'),'Function App serves Technology Function without invalid Node composition');
     ok(!!link(sql,db,'serving-relationship'),'SQL server serves its database');
     ok($(m).find('view').size()===views && m.specializations.length===0,'No diagrams or specializations generated');
     var ids=relationships().map(function(r){return String(r.id);}).sort().join(','),elementIds=AzureArchi.readElements(m).map(function(e){return e.id;}).sort().join(',');
@@ -63,7 +63,7 @@
     var original=snapshot.resources.slice(),children=[q,t,f,db],owned=relationships().filter(function(r){return String(r.prop('Azure-SyncManagedBy'))===C.OWNER && children.some(function(c){return String(r.target.prop('Azure-ObjectId'))===c.id;});});
     owned.forEach(function(r){r.name='Old deleted link label';});
     snapshot.resources=original.filter(function(r){return !C.childSpec(r.type);});snapshot.confirmedMissing=children.map(function(c){return C.identity(tenant,c.id);});snapshot.collectedAt='2026-09-26T11:22:33Z';sync();
-    ok(owned.every(function(r){return String(r.prop('IsDeleted'))==='yes' && String(r.prop('DeletedDate'))==='2026-09-26' && String(r.name)==='';}),'Deletion soft-deletes owned composition, assignment and serving links and clears their names');
+    ok(owned.every(function(r){return String(r.prop('IsDeleted'))==='yes' && String(r.prop('DeletedDate'))==='2026-09-26' && String(r.name)==='';}),'Deletion soft-deletes owned composition and serving links and clears their names');
     snapshot.collectedAt='2026-09-27T12:00:00Z';sync();ok(owned.every(function(r){return String(r.prop('DeletedDate'))==='2026-09-26';}),'Repeated deletion retains relationship deletion timestamps');
     snapshot.resources=original;snapshot.confirmedMissing=[];sync();
     ok(owned.every(function(r){return String(r.prop('IsDeleted'))==='no' && String(r.prop('DeletedDate'))==='';}) && AzureArchi.readElements(m).map(function(e){return e.id;}).sort().join(',')===elementIds,'Child restoration retains concept and relationship identity');
