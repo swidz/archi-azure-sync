@@ -1,4 +1,4 @@
-# Service Bus, Azure Functions and SQL child resources
+# Service Bus, Azure Functions, SQL and subnet child resources
 
 Run **scripts/Sync Azure.ajs** as usual. These collectors also run during **utils/Export Azure Inventory.ajs**. Icons remain optional in **utils/Apply Azure Appearance.ajs**; no diagrams are generated.
 
@@ -6,16 +6,17 @@ Run **scripts/Sync Azure.ajs** as usual. These collectors also run during **util
 | --- | --- | --- | --- |
 | Service Bus namespace → queue | Microsoft.ServiceBus/namespaces/queues | Node | Composition |
 | Service Bus namespace → topic | Microsoft.ServiceBus/namespaces/topics | Node | Composition |
-| Function App → function | Microsoft.Web/sites/functions | Technology Function | Assignment |
+| Function App → function | Microsoft.Web/sites/functions | Technology Function | Serving |
 | SQL logical server → database | Microsoft.Sql/servers/databases | Node | Serving |
+| VNet → subnet (enrichment enabled) | Microsoft.Network/virtualNetworks/subnets | Node | Composition |
 
 All generated relationship Name fields are blank. Sync also clears old or custom names on existing script-owned links in the selected scope, including SQL serving links, while preserving relationship identity. Matching manual relationships keep their names.
 
 The relationship source is the parent and the target is the child. Existing subscription/resource-group compositions remain. Individual Technology Functions are linked through their Function App rather than by a direct resource-group composition, which Archi does not permit.
 
-Archi rejects composition from a Node to a Technology Function. This package uses the valid assignment relationship. To prefer Function Nodes with composition, change that row in config/specializations.js to node before importing. For existing Functions, changing the mapping stops before model mutation until you explicitly migrate the concept type in Archi. IDs are never silently replaced.
+Archi rejects composition from a Node to a Technology Function. This package uses Serving from the Function App to its Technology Function. Since 0.12.1, readable selected script-owned legacy Assignment links are converted automatically, preserving existing diagram connections and element GUIDs; the jArchi type conversion assigns the relationship a new GUID once. To prefer Function Nodes with composition, change that row in config/specializations.js to node before importing. For existing Functions, changing the mapping stops before model mutation until you explicitly migrate the concept type in Archi. IDs are never silently replaced.
 
-Each supported child has Azure-ParentObjectId set to its namespace, Function App or SQL server ARM ID. Other requested Azure properties and creation/deletion/last-sync timestamps follow the existing rules. Folder organization remains Azure / subscription / resource group / full ARM type; children keep their actual resource group.
+Each supported child has Azure-ParentObjectId set to its namespace, Function App, SQL server or VNet ARM ID. Other requested Azure properties and creation/deletion/last-sync timestamps follow the existing rules. Folder organization remains Azure / subscription / resource group / full ARM type; children keep their actual resource group.
 
 ## Collection and permissions
 
@@ -24,6 +25,8 @@ Use the same tenant, selected subscriptions and interactive authentication metho
 - Service Bus uses the namespace queues and topics lists. Basic-tier namespaces collect queues only because topics are not supported. If generic ARM metadata omits the SKU, the namespace is read to determine it. Topic subscriptions, rules, dead-letter subqueues and messages are not additional imported elements.
 - Function Apps are recognized from the site kind, including combined values such as functionapp,linux. If kind is missing, site metadata is read before deciding. Individual functions of the production app are collected; deployment slots are not expanded. Source files, raw configuration, test data, function keys and invocation URLs are not copied into inventory exports or the Archi model. Enabled connection discovery projects supported binding metadata into sanitized relationship evidence. The script does not call listkeys, invoke functions, or call the SCM/data-plane host directly.
 - Azure SQL databases are listed under Microsoft.Sql/servers. System databases such as master are included when Azure returns them. Databases also returned by generic ARM inventory are merged by tenant plus ARM ID. SQL managed instances, SQL on VMs, tables and schema objects are not expanded by this collector.
+
+- VNet subnets are collected when AZURE_ENRICH_INFRASTRUCTURE=true (the default). Subnets use Node, with composition from both the VNet and resource group. The collector projects subnet prefixes, network policies and NSG references. Additional infrastructure associations are documented in the [enrichment guide](infrastructure.md). Disabling enrichment preserves existing subnet elements and links.
 
 Successful pages are retained if a later request fails. Denied queues do not block topics, Functions or SQL databases; available child records still synchronize. If a subscription has any collection or verification failure, no absent resources in that subscription are marked deleted. Unreadable existing children and their relationships retain their properties and timestamps. Missing entries still receive individual GET checks. Recognized Function NotFound and Service Bus MessagingEntityNotFound responses require completed parent collection coverage. Scope violations and duplicate identities remain fatal. See [partial synchronization](partial-sync.md). Collection and verification are not a transactional Azure snapshot; changes during collection can require a retry.
 
@@ -39,6 +42,7 @@ All endpoints are GET requests to management.azure.com and use the existing ARM 
 | namespace/topics | 2024-01-01 | [Topics List By Namespace](https://learn.microsoft.com/en-us/rest/api/servicebus/controlplane/topics/list-by-namespace?view=rest-servicebus-controlplane-2024-01-01) |
 | site/functions | 2025-03-01 | [Web Apps List Functions](https://learn.microsoft.com/en-us/rest/api/appservice/web-apps/list-functions?view=rest-appservice-2025-03-01) |
 | server/databases | 2023-08-01 | [Databases List By Server](https://learn.microsoft.com/en-us/rest/api/sql/databases/list-by-server?view=rest-sql-2023-08-01) |
+| virtualNetwork/subnets | 2025-09-01 | [Subnets List](https://learn.microsoft.com/en-us/rest/api/virtualnetwork/subnets/list?view=rest-virtualnetwork-2025-09-01) |
 
 Missing individual Functions use [Get Function](https://learn.microsoft.com/en-us/rest/api/appservice/web-apps/get-function?view=rest-appservice-2025-03-01). Microsoft documents the Basic-tier restriction in its [Service Bus topics quickstart](https://learn.microsoft.com/en-us/azure/service-bus-messaging/service-bus-quickstart-topics-subscriptions-portal).
 

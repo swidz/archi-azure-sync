@@ -1,0 +1,98 @@
+/* Synthetic ARM/Resource Graph responses in a disposable Archi model. No Azure or user model access. */
+(function(){
+    var Paths=Java.type('java.nio.file.Paths'),root=String(Paths.get(__DIR__).getParent().toAbsolutePath());
+    ['lib/core.js','lib/azure-client.js','lib/infrastructure.js','lib/java-runtime.js','lib/archi-adapter.js','config/specializations.js'].forEach(function(f){load(root+'/'+f);});
+    var C=AzureCore,I=AzureInfrastructure,checks=[],opts={enrichInfrastructure:true};function ok(x,m){C.assert(x,m);checks.push(m);}
+    var tenant='aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa',sub='11111111-1111-1111-1111-111111111111',sub2='22222222-2222-2222-2222-222222222222';
+    var group='/subscriptions/'+sub+'/resourceGroups/demo',prefix=group+'/providers/',other='/subscriptions/'+sub2+'/resourceGroups/data/providers/';
+    function raw(type,name,p,second){return {id:(second?other:prefix)+type+'/'+name,type:type,name:name,location:'westeurope',tags:{Environment:'Dev',Owner:'Team',Password:'SECRET'},properties:p||{}};}
+    var vnet=raw('Microsoft.Network/virtualNetworks','vnet',{addressSpace:{addressPrefixes:['10.0.0.0/16']}}),nsg=raw('Microsoft.Network/networkSecurityGroups','nsg');
+    var subnet={id:vnet.id+'/subnets/app',name:'app',type:'Microsoft.Network/virtualNetworks/subnets',properties:{addressPrefix:'10.0.1.0/24',networkSecurityGroup:{id:nsg.id}}};
+    var vm=raw('Microsoft.Compute/virtualMachines','vm',{hardwareProfile:{vmSize:'Standard_D2s_v5'},storageProfile:{osDisk:{osType:'Linux'}},osProfile:{adminPassword:'SECRET'}});
+    var pip=raw('Microsoft.Network/publicIPAddresses','pip',{ipAddress:'203.0.113.1'}),store=raw('Microsoft.Storage/storageAccounts','store',{minimumTlsVersion:'TLS1_2'},true);
+    var nic=raw('Microsoft.Network/networkInterfaces','nic',{virtualMachine:{id:vm.id},networkSecurityGroup:{id:nsg.id},ipConfigurations:[{properties:{subnet:{id:subnet.id},publicIPAddress:{id:pip.id},privateIPAddress:'10.0.1.4'}}]});
+    var pe=raw('Microsoft.Network/privateEndpoints','pe',{subnet:{id:subnet.id},networkInterfaces:[{id:nic.id}],privateLinkServiceConnections:[{properties:{privateLinkServiceId:store.id,privateLinkServiceConnectionState:{status:'Approved'}}}]});
+    var m=$.model.create('Infrastructure enrichment smoke');m.setAsCurrent();var map=C.mappings(AZURE_SPECIALIZATIONS),time=Date.parse('2026-09-26T12:00:00Z');
+    function element(id){var found;$(m).find('element').each(function(e){e=e.concept||e;if(String(e.prop('Azure-ObjectId'))===id)found=e;});return found;}
+    function allLinks(){var result=[],seen={};$(m).find('relationship').each(function(r){r=r.concept||r;if(!seen[String(r.id)]){seen[String(r.id)]=true;result.push(r);}});return result;}
+    function link(a,b,type){return allLinks().filter(function(r){return String(r.source.prop('Azure-ObjectId'))===a.id&&String(r.target.prop('Azure-ObjectId'))===b.id&&String(r.type)===(type||'association-relationship');})[0];}
+    function fingerprint(r){return JSON.stringify([String(r.id),String(r.name),String(r.prop('IsDeleted')),String(r.prop('DeletedDate')),String(r.prop('LastSyncTime')),String(r.prop('Azure-InfrastructureEvidence'))]);}
+    function folder(e){var names=[],p=$(e).parent().first();while(p&&String(p.type)==='folder'){names.unshift(String(p.name));p=$(p).parent().first();}return names.slice(1).join('|');}
+    function build(mode,options){
+        options=options||opts;var rows=[vnet,nsg,vm,pip,nic,pe,store],subs=[sub,sub2];
+        if(mode==='one-sub')subs=[sub];
+        if(mode==='deleted-subnet')rows=rows.filter(function(r){return r.id!==nic.id && r.id!==pe.id;});
+        function current(r){
+            if(mode==='detached'&&r.id===nic.id)return Object.assign({},nic,{properties:{virtualMachine:{id:vm.id},ipConfigurations:[{properties:{subnet:{id:subnet.id},privateIPAddress:'10.0.1.4'}}]}});
+            return r;
+        }
+        var calls=[],io={now:function(){return time;},sleep:function(){},request:function(method,url,headers,body){
+            calls.push([method,url]);
+            if(method==='POST'){
+                C.assert(url.indexOf('/providers/Microsoft.ResourceGraph/resources?')>0,'Only Resource Graph POST is permitted');
+                if(mode==='no-graph'||mode==='unreadable')return {status:403,body:{error:{message:'SECRET'}}};
+                var request=JSON.parse(body),sid=request.subscriptions[0];
+                return {status:200,body:{data:rows.filter(function(r){return r.id.split('/')[2]===sid;}).map(current),resultTruncated:'false'}};
+            }
+            var path=url.substring('https://management.azure.com'.length).split('?')[0],sid=path.split('/')[2];
+            if(/^\/subscriptions\/[^/]+$/.test(path))return {status:200,body:{subscriptionId:sid,tenantId:tenant,displayName:sid===sub?'Compute':'Data',state:'Enabled'}};
+            if(/\/resourcegroups$/i.test(path))return {status:200,body:{value:[{id:'/subscriptions/'+sid+'/resourceGroups/'+(sid===sub?'demo':'data'),name:sid===sub?'demo':'data'}]}};
+            if(/\/resources$/.test(path))return {status:200,body:{value:rows.filter(function(r){return r.id.split('/')[2]===sid;})}};
+            if(path===vnet.id+'/subnets')return mode==='denied-subnets'?{status:403}:{status:200,body:{value:mode==='deleted-subnet'?[]:[subnet]}};
+            if(/\/providers$/.test(path))return {status:200,body:{value:['Microsoft.Network','Microsoft.Compute','Microsoft.Storage'].map(function(ns){return {namespace:ns,resourceTypes:[vnet,nsg,vm,pip,nic,pe,store].filter(function(r){return r.type.indexOf(ns+'/')===0;}).map(function(r){return {resourceType:r.type.split('/').slice(1).join('/'),apiVersions:['2025-09-01']};})};})}};
+            if(mode==='unreadable')return {status:403,body:{error:{message:'SECRET'}}};
+            if(mode==='denied-subnets'&&path===subnet.id)return {status:403};
+            var r=rows.concat(mode==='deleted-subnet'?[]:[subnet]).filter(function(x){return x.id===path;})[0];
+            return r?{status:200,body:current(r)}:{status:404,body:{error:{code:'ResourceNotFound'}}};
+        }};
+        var client=AzureClient.create(io,{accessToken:'synthetic',expiresAt:time+3600000,resource:'arm'}),s=client.inventory({tenantId:tenant,subscriptionIds:subs},AzureArchi.readElements(m),options);
+        if(options.enrichInfrastructure)s.infrastructure=I.create(client,undefined,options).inventory(s);
+        var p=C.plan(AzureArchi.readElements(m),s,map,options);if(s.infrastructure)I.plan(s,p,AzureArchi.isAllowedRelationship);
+        return {snapshot:s,plan:p,calls:calls,options:options};
+    }
+    function sync(b){return AzureArchi.apply(m,b.plan,b.options);}
+    var first=build('normal'),applied=sync(first);
+    ok(first.snapshot.resources.length===12 && first.snapshot.infrastructure.stats.subnets===1,'ARM collector imports selected subscription/group resources and the subnet');
+    ok(first.snapshot.infrastructure.stats.graphPages===2 && first.snapshot.infrastructure.stats.detailReads===2,'Graal uses one Graph page per subscription and verifies NIC/private endpoint through ARM');
+    ok(String(element(subnet.id).type)==='node' && String(element(subnet.id).prop('Azure-ParentObjectId'))===vnet.id,'Subnet is a Node with its parent VNet ARM ID');
+    ok(!!link(vnet,subnet,'composition-relationship'),'VNet composes its subnet');
+    ok(applied.infrastructure.created===8 && !!link(vm,nic) && !!link(nic,subnet) && !!link(nic,pip) && !!link(nic,nsg) && !!link(subnet,nsg) && !!link(pe,store),'All supported infrastructure references become Association relationships');
+    ok(String(element(vm.id).prop('Azure-VMSize'))==='Standard_D2s_v5' && String(element(vm.id).prop('Azure-OSType'))==='Linux' && String(element(vm.id).prop('Azure-Tag-Environment'))==='Dev','Selected properties and allowlisted tags reach actual Archi elements');
+    ok(String(element(subnet.id).prop('Azure-AddressPrefixes'))==='["10.0.1.0/24"]' && String(element(nic.id).prop('Azure-PrivateIPAddresses'))==='["10.0.1.4"]','Subnet prefixes and NIC private IPs are projected as metadata');
+    ok(!JSON.stringify(first.snapshot).includes('SECRET') && !element(vm.id).prop('Azure-Tag-Password'),'Snapshot and model exclude unselected tags and arbitrary raw properties');
+    ok($(m).find('view').size()===0 && m.specializations.length===0,'Enrichment generates no views or specializations');
+    var cross=link(pe,store),crossId=String(cross.id),attachment=link(nic,pip),attachmentId=String(attachment.id),created=String(attachment.prop('CreatedDate'));
+    ok(folder(cross)===folder(cross.source) && folder(cross).indexOf('Compute ['+sub+']')>0,'Cross-subscription association uses the source resource folder hierarchy');
+    ok(String(cross.prop('Azure-SourceElementId'))===String(element(pe.id).id) && String(cross.prop('Azure-TargetElementId'))===String(element(store.id).id),'Infrastructure relationships record actual endpoint GUIDs');
+    ok(String(cross.name)==='' && String(cross.prop('Azure-RelationKind'))==='infrastructure' && JSON.parse(String(cross.prop('Azure-InfrastructureEvidence')))[0].property.indexOf('privateLinkServiceId')>0,'Blank relationship names retain resource-ID evidence in properties');
+    var count=allLinks().length;attachment.name='Legacy label';attachment.prop('Azure-SourceElementId','stale');
+    var again=sync(build('normal'));ok(again.infrastructure.created===0 && allLinks().length===count && String(link(nic,pip).id)===attachmentId && String(attachment.name)==='' && String(attachment.prop('Azure-SourceElementId'))===String(element(nic.id).id),'Repeat synchronization uses actual GUIDs, repairs metadata and creates no duplicates');
+    time+=60000;var before=fingerprint(attachment),unreadable=build('unreadable');sync(unreadable);
+    ok(unreadable.plan.partial && fingerprint(attachment)===before && String(element(vm.id).prop('Azure-VMSize'))==='Standard_D2s_v5','Denied enrichment preserves old links and unavailable detailed properties while applying inventory');
+    ok(String(m.prop('Azure-LastSyncStatus'))==='partial' && String(m.prop('Azure-LastSuccessfulSyncAt'))===first.plan.clock.iso,'Partial enrichment reports partial status without advancing full-success timestamp');
+    var fallback=build('no-graph');sync(fallback);ok(fallback.plan.partial && fallback.snapshot.infrastructure.stats.detailReads===7 && String(element(vm.id).prop('Azure-EnrichmentSource'))==='Azure Resource Manager','Graph denial falls back to direct ARM detail reads');
+    time+=60000;var removed=sync(build('detached'));
+    ok(removed.infrastructure.deleted===2 && String(attachment.prop('IsDeleted'))==='yes' && String(attachment.id)===attachmentId,'Current ARM configuration retires detached NIC public-IP and NSG associations');
+    var deletedTime=String(attachment.prop('DeletedTime'));time+=60000;sync(build('detached'));
+    ok(String(attachment.prop('DeletedTime'))===deletedTime,'Repeated absence retains the original relationship deletion timestamp');
+    sync(build('normal'));ok(String(attachment.prop('IsDeleted'))==='no' && String(attachment.prop('DeletedDate'))==='' && String(attachment.id)===attachmentId && String(attachment.prop('CreatedDate'))===created,'Restoring an attachment reuses its relationship GUID and creation date');
+    var crossBefore=fingerprint(cross),limited=build('one-sub');sync(limited);
+    ok(limited.plan.partial && fingerprint(cross)===crossBefore && String(cross.id)===crossId,'Unselected reference targets preserve cross-subscription relationships');
+    var subnetBefore=JSON.stringify(AzureArchi.readElements(m).filter(function(e){return e.properties['Azure-ObjectId']===subnet.id;})),infraBefore=allLinks().filter(function(r){return String(r.prop('Azure-RelationKind'))==='infrastructure';}).map(fingerprint).sort().join('|');
+    var disabled=build('normal',{enrichInfrastructure:false});sync(disabled);
+    ok(!disabled.calls.some(function(c){return c[0]==='POST'||c[1].indexOf('/subnets?')>0;}) && !disabled.plan.infrastructure,'Disabling enrichment performs no Graph or subnet collection');
+    ok(JSON.stringify(AzureArchi.readElements(m).filter(function(e){return e.properties['Azure-ObjectId']===subnet.id;}))===subnetBefore && allLinks().filter(function(r){return String(r.prop('Azure-RelationKind'))==='infrastructure';}).map(fingerprint).sort().join('|')===infraBefore,'Disabled enrichment preserves subnet state and every infrastructure relationship');
+    var subnetConcept=element(subnet.id),subnetId=String(subnetConcept.id);sync(build('denied-subnets'));
+    ok(String(subnetConcept.prop('IsDeleted'))==='no' && String(subnetConcept.id)===subnetId,'Denied subnet list and existence verification preserve the subnet');
+    attachment.delete();var manual=m.createRelationship('association-relationship','Manual attachment',element(nic.id),element(pip.id));manual.prop('Note','Keep');var manualFolder=String($(manual).parent().first().id);sync(build('normal'));
+    ok(String(manual.name)==='Manual attachment' && !manual.prop('Azure-SyncManagedBy') && String(manual.prop('Note'))==='Keep' && String($(manual).parent().first().id)===manualFolder,'Existing manual associations are reused without ownership or folder changes');
+    sync(build('deleted-subnet'));
+    ok(String(subnetConcept.prop('IsDeleted'))==='yes' && String(link(vnet,subnet,'composition-relationship').prop('IsDeleted'))==='yes','Authoritative absent-subnet verification soft-deletes the Node and containment link');
+    sync(build('normal'));ok(String(subnetConcept.prop('IsDeleted'))==='no' && String(subnetConcept.id)===subnetId,'Subnet restoration retains the element GUID');
+    var dir=AzureJava.resolve(root,'work');Java.type('java.nio.file.Files').createDirectories(Paths.get(dir));m.save(dir+'/infrastructure-smoke.archimate');var loaded=$.model.load(dir+'/infrastructure-smoke.archimate');
+    var loadedCross;$(loaded).find('relationship').each(function(r){if(String(r.id)===crossId)loadedCross=r;});
+    ok(loadedCross && String(loadedCross.prop('Azure-RelationKind'))==='infrastructure' && String(loadedCross.type)==='association-relationship','Infrastructure links, evidence and relationship identity survive save/reload');
+    ok(!AzureJava.read(dir+'/infrastructure-smoke.archimate').includes('SECRET'),'Saved model contains no excluded credential or tag values');
+    AzureJava.write(dir+'/infrastructure-smoke-result.json',JSON.stringify({status:'passed',archi:String($.process.release.archiVersion),jArchi:String($.process.release.jArchiVersion),checks:checks},null,2));
+    console.log('ARCHI_INFRASTRUCTURE_SMOKE_PASSED');
+}());

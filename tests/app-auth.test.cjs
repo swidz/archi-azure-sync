@@ -12,14 +12,14 @@ function app(method="azure-cli", overrides={}, options, mode="sync", confirm=tru
             prompt:(label)=>{prompts.push(label);return /tenant/i.test(label)?H.tenant:/Subscription IDs/.test(label)?(scenario.subscriptions||H.sub):H.clientId;},
             confirm:()=>confirm,alert:s=>alerts.push(s),promptSaveFile:()=>"/snapshot.json"
         },
-        AzureConnections:require("../lib/connections.js"),
+        AzureConnections:require("../lib/connections.js"), AzureInfrastructure:require("../lib/infrastructure.js"),
         AzureJava:{io:scenario.io || {now:()=>Date.parse(H.snapshot().collectedAt)},write:(file,text)=>calls.push(["exported",JSON.parse(text)])},
         AzureEntra:{...require("../lib/entra-applications.js"),create:(io,token,progress)=>({inventory:()=>{calls.push(["graph-inventory"]);if(graphError)return require("../lib/entra-applications.js").create(H.io([{status:403,body:{error:{code:"Authorization_RequestDenied"}}}]),token,progress).inventory(H.tenant,[]);return {tenantId:H.tenant,completed:true,collectedAt:H.snapshot().collectedAt,applications:[{id:H.clientId,appId:H.clientId,displayName:"Entra app"}],confirmedMissing:[]};}})},
         AzureCliJava:{createIo:()=>{calls.push(["cli-process"]);return {};}},
         AzureCli:{signIn:(io,cfg,resource)=>{calls.push(["cli",cfg,resource]);if(scenario.authFailure)scenario.authFailure(cfg,resource);return bearer(resource);}},
         AzureClient:{
             deviceLogin:(io,cfg,display,resource)=>{calls.push(["device",cfg,resource]);return bearer(resource);},
-            create:()=>({inventory:()=>scenario.snapshot || H.snapshot()})
+            create:()=>({...scenario.armClient,inventory:(cfg,existing,o)=>{if(scenario.onInventory)scenario.onInventory(o);return scenario.snapshot || H.snapshot();}})
         },
         AzureArchi:{prepareAppearance:()=>({count:2}),applyAppearance:(m,a,o)=>calls.push(["appearance",o]),readElements:()=>[],prepareImages:()=>{throw Error("Sync must not prepare images");},prepareProfiles:(m,map,root,remove,includeImages)=>{calls.push(["profiles-planned",includeImages]);return {};},applyProfiles:()=>calls.push(["profiles-applied"]),
             apply:(m,p,o)=>calls.push(["applied",o,p])}
@@ -162,4 +162,27 @@ test('Connection reads are optional and configuration denial does not stop norma
 test('Inventory export includes only sanitized connection evidence and coverage',()=>{
  const r=app('azure-cli',{}, {discoverConnections:true},'export',true,false,connectionScenario()),s=r.calls.find(c=>c[0]==='exported')[1];
  assert.equal(s.connections.records.length,1);assert.equal(s.connections.completedOwners.length,1);assert.ok(!JSON.stringify(s).includes('SECRET'));assert.ok(!r.calls.some(c=>c[0]==='applied'));
+});
+function infrastructureScenario(fail=false){
+ let forwarded,queries=0,details=0;
+ const resource={...H.resource,metadata:require('../lib/infrastructure.js').project({...H.raw,location:'westeurope',tags:{Environment:'Dev',Password:'SECRET'}},{enrichInfrastructure:true},false,false)};
+ return {snapshot:H.snapshot([resource]),onInventory:o=>{forwarded=o;},armClient:{queryGraph:q=>{queries++;if(fail)throw H.C.readError('Graph denied');return {data:[{...H.raw,properties:{hardwareProfile:{vmSize:'Standard_D2s_v5'},osProfile:{adminPassword:'SECRET'}}}]};},details:()=>{details++;if(fail)throw H.C.readError('Details denied');return H.raw;}},state:()=>({forwarded,queries,details})};
+}
+test('infrastructure enrichment integrates with main sync and respects preview cancellation',()=>{
+ for(const confirmed of [true,false]){
+  const scenario=infrastructureScenario(),r=app('azure-cli',{}, {enrichInfrastructure:true,tagKeys:['Environment']},'sync',confirmed,false,scenario);
+  assert.equal(scenario.state().forwarded.enrichInfrastructure,true);assert.deepEqual(Array.from(scenario.state().forwarded.tagKeys),['Environment']);assert.equal(scenario.state().queries,1);assert.equal(scenario.state().details,0);
+  assert.ok(r.tokens.every(t=>t.accessToken===null));
+  if(confirmed){const p=r.calls.find(c=>c[0]==='applied')[2];assert.equal(p.operations[0].properties['Azure-VMSize'],'Standard_D2s_v5');assert.equal(p.operations[0].properties['Azure-Location'],'westeurope');assert.ok(p.infrastructure);assert.ok(!JSON.stringify(p).includes('SECRET'));assert.ok(r.logs.some(l=>l.includes('Infrastructure enrichment:')));}
+  else assert.ok(!r.calls.some(c=>c[0]==='applied'));
+ }
+});
+test('enrichment denial leaves resource sync available and disabling performs no enrichment',()=>{
+ const scenario=infrastructureScenario(true),r=app('azure-cli',{}, {enrichInfrastructure:true},'sync',true,false,scenario);
+ const p=r.calls.find(c=>c[0]==='applied')[2];assert.equal(p.partial,true);assert.equal(p.counts.created,1);assert.equal(p.operations[0].properties['Azure-Location'],'westeurope');assert.ok(!p.operations[0].properties['Azure-VMSize']);
+ const disabled=infrastructureScenario(),off=app('azure-cli',{}, {enrichInfrastructure:false},'sync',true,false,disabled);assert.equal(disabled.state().queries,0);assert.equal(off.calls.find(c=>c[0]==='applied')[2].infrastructure,undefined);
+});
+test('export includes projected enrichment and coverage without model mutation',()=>{
+ const scenario=infrastructureScenario(),r=app('azure-cli',{}, {enrichInfrastructure:true},'export',true,false,scenario),s=r.calls.find(c=>c[0]==='exported')[1];
+ assert.equal(s.infrastructure.version,1);assert.equal(s.infrastructure.metadata.length,1);assert.equal(s.status,'complete');assert.ok(!JSON.stringify(s).includes('SECRET'));assert.ok(!r.calls.some(c=>c[0]==='applied'));
 });

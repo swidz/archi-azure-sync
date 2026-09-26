@@ -8,11 +8,13 @@ Resources default to ordinary Technology-layer **Nodes**; individual Azure Funct
 
 **Icons are optional. Sync Azure.ajs does not add custom images or change diagram image/text placement.** Run **scripts/utils/Apply Azure Appearance.ajs** only if you want Azure icons on Nodes you have manually placed in views. It runs locally, without Azure authentication. Bundled images have a maximum dimension of **48 pixels**; the utility defaults to images at **Top Center** and names at **Bottom Center**. Specializations remain off by default.
 
-Sync creates **unnamed composition relationships** from each subscription to its resource groups and from each resource group to its Node resources. It also collects Service Bus queues/topics, individual Azure Functions and SQL databases with the [service relationships described here](docs/child-resources.md). Generated relationships follow their **source object** under **Relationships → Azure → Source subscription → Source resource group (or Other) → Source object type**, using the same AZURE_ROOT_FOLDER setting. Repeated runs search the entire model by actual **source element GUID + target element GUID + relationship type** and reuse existing links. **No script generates diagrams or diagram connections.**
+Sync creates **unnamed composition relationships** from each subscription to its resource groups and from each resource group to its Node resources. It also collects Service Bus queues/topics, individual Azure Functions, SQL databases and VNet subnets with the [service relationships described here](docs/child-resources.md). Generated relationships follow their **source object** under **Relationships → Azure → Source subscription → Source resource group (or Other) → Source object type**, using the same AZURE_ROOT_FOLDER setting. Repeated runs search the entire model by actual **source element GUID + target element GUID + relationship type** and reuse existing links. **No script generates diagrams or diagram connections.**
 
 Entra app registrations are imported as **Nodes** under **Azure → Entra ID [tenant GUID] → App registrations**. This is enabled by default and requires Microsoft Graph read access. Denied Graph access is reported in the Scripts output window; readable ARM resources still synchronize. See [Entra setup and scope](docs/entra-applications.md) before your first upgraded run; set AZURE_INCLUDE_ENTRA_APPLICATIONS=false for ARM-only sync.
 
 Connection discovery reads App Service/Function App configuration and creates **Serving**, **Triggering** and **Flow** relationships where supported configuration identifies a unique target. Only sanitized connection details are stored on relationships. Enabled by default; see [connection discovery, permissions and coverage](docs/connections.md).
+
+Infrastructure enrichment adds selected properties and tags, subnet Nodes, and **Association** links from explicit network resource IDs. Enabled by default; it uses Azure Resource Graph with ARM fallback and current ARM reads before retiring links. No additional runtime or Microsoft Graph permission is needed for this feature. See [infrastructure settings, fields and coverage](docs/infrastructure.md).
 
 ## Quick start
 
@@ -34,9 +36,11 @@ var AZURE_ROOT_FOLDER = "Azure";
 var AZURE_USE_SPECIALIZATIONS = false;
 var AZURE_INCLUDE_ENTRA_APPLICATIONS = true;
 var AZURE_DISCOVER_CONNECTIONS = true;
+var AZURE_ENRICH_INFRASTRUCTURE = true;
+var AZURE_TAG_KEYS = ["Environment", "Application", "Owner", "CostCenter"];
 ~~~
 
-Set AZURE_DISCOVER_CONNECTIONS=false to skip configuration reads and preserve previously discovered connections. The Export utility has its own flag.
+Set AZURE_DISCOVER_CONNECTIONS=false to skip configuration reads and preserve previously discovered connections. The Export utility has its own flags. Set AZURE_ENRICH_INFRASTRUCTURE=false to skip property enrichment, subnet collection and network associations while preserving existing enriched data. AZURE_TAG_KEYS selects the tag values to store in the model; use [] for no new tag imports.
 
 Subscription folder labels include display name and GUID. Full ARM types form single folder labels. Missing resource groups use Other; a real group named Other is labelled Other (resource group). Changing the root name renames the managed roots under Technology & Physical and Relationships. Empty folders are retained.
 
@@ -53,7 +57,7 @@ Positions accept top/middle/bottom combined with left/center/right, for example 
 
 | Entry point | Purpose |
 | --- | --- |
-| scripts/Sync Azure.ajs | Collect and verify inventory, preview changes, create/update/soft-delete elements, organize folders and ensure composition relationships. Does not add custom images or format diagrams. |
+| scripts/Sync Azure.ajs | Collect and verify inventory, preview changes, create/update/soft-delete elements, organize folders and maintain containment, service, connection and infrastructure relationships. Does not add custom images or format diagrams. |
 | scripts/utils/Apply Azure Appearance.ajs | Optional: locally apply custom icons and image/name positions to managed Azure objects already placed in views. No Azure connection or sync-timestamp changes. |
 | scripts/utils/Export Azure Inventory.ajs | Save actual inventory as JSON without modifying the model. |
 | scripts/utils/Discover Azure Resource Types.ajs | Export provider-advertised types for manual catalog review; does not merge them automatically. |
@@ -74,7 +78,7 @@ config/specializations.js contains **3,407 editable type/base/icon mappings** (3
 | Azure-ObjectName | Name returned by Azure |
 | Azure-ResourceGroupId | Full resource-group ARM ID, empty for subscription-level objects |
 | Azure-ResourceGroupName | Group name, empty for subscription-level objects |
-| Azure-ParentObjectId | Namespace, Function App or SQL server ARM ID for the supported child types; otherwise empty |
+| Azure-ParentObjectId | Namespace, Function App, SQL server or VNet ARM ID for the supported child types; otherwise empty |
 | Azure-URL | Tenant-specific Azure portal link for ARM; Graph application endpoint for Entra |
 | CreatedDate, CreatedTime | First creation in this Archi repository, not Azure provisioning time |
 | DeletedDate, DeletedTime | First confirmed absence; empty while active; preserved on repeated absent runs |
@@ -85,6 +89,8 @@ config/specializations.js contains **3,407 editable type/base/icon mappings** (3
 Dates use YYYY-MM-DD; times use UTC HH:mm:ssZ. One timestamp is used for the run. Restoration retains the element ID, relationships and original Created values and clears Deleted values. Resource elements are never physically deleted.
 
 LastSync values advance for elements successfully reconciled in the applied run, including unchanged readable resources. Unverified elements retain all their existing properties and timestamps during partial runs. Cancelled runs do not apply changes. See [partial synchronization and output warnings](docs/partial-sync.md).
+
+For selected location, SKU, tags, service details and enrichment coverage properties, see [infrastructure enrichment](docs/infrastructure.md#imported-element-properties).
 
 Resource groups and subscriptions are also Nodes. A group's resource-group properties refer to itself; a subscription's are empty.
 
@@ -98,7 +104,7 @@ Existing composition, assignment and serving relationships are matched using the
 
 Since **0.12.1**, the next applied sync converts existing script-owned Function App → Technology Function Assignment links to **Serving** when both endpoints are readable in the selected scope. Existing diagram connections, element GUIDs, creation timestamps and custom properties are preserved. The public jArchi type-change API gives the converted relationship a new GUID once; subsequent syncs reuse it. Manual links are unchanged. The Scripts output reports the number converted.
 
-**Other** is only a folder. Resources without a resource group receive no invented group or group relationship. A missing parent Node is reported in the preview and its link is skipped. The explicit service links are namespace → queue/topic composition, Function App → Technology Function serving, and SQL server → database serving. Connection discovery additionally infers dependencies and supported Function binding interactions from configuration; it does not infer arbitrary application calls or network topology.
+**Other** is only a folder. Resources without a resource group receive no invented group or group relationship. A missing parent Node is reported in the preview and its link is skipped. The explicit service links are namespace → queue/topic composition, Function App → Technology Function serving, SQL server → database serving, and VNet → subnet composition. Connection discovery additionally infers dependencies and supported Function binding interactions from configuration; it does not infer arbitrary application calls. The separate infrastructure collector adds Associations based on documented network resource references; these do not imply traffic or runtime calls.
 
 For example, namespace-to-queue links are placed under Microsoft.ServiceBus/namespaces, Function App-to-function links under Microsoft.Web/sites, and SQL server-to-database links under Microsoft.Sql/servers. Subscription-to-group links use Other / Microsoft.Resources/subscriptions because the source subscription has no resource group. The source name is not an additional folder level.
 
@@ -137,9 +143,9 @@ To **explicitly adopt** an existing manually maintained Azure element, set its e
 
 ## Inventory coverage
 
-This release inventories Azure public cloud's **generic ARM Resources List**, selected resource groups and subscription containers, plus dedicated lists for **Service Bus queues/topics, Function App functions, and Azure SQL logical-server databases**. It follows every page and imports any returned resource type, even if absent from the catalog. Microsoft Graph additionally lists app registrations from the selected tenant when enabled.
+This release inventories Azure public cloud's **generic ARM Resources List**, selected resource groups and subscription containers, plus dedicated lists for **Service Bus queues/topics, Function App functions, Azure SQL logical-server databases, and enabled VNet subnets**. It follows every page and imports any returned resource type, even if absent from the catalog. Microsoft Graph additionally lists app registrations from the selected tenant when enabled.
 
-A type catalog does not imply that Azure's generic listing returns every object of that type. Other nested resources, such as subnets, still require additional collectors. Function deployment slots, Service Bus topic subscriptions and SQL managed-instance databases are not expanded by these new collectors. Entra users/groups, enterprise applications/service principals, managed identities, agent identity blueprints, blobs, Kubernetes workloads, SaaS data, other tenant/management-group objects and sovereign clouds are outside this release. Subscription/resource-group containment, documented service relationships and supported configuration-derived connections are created; diagrams are never generated. The export covers ARM infrastructure and enabled Entra app registrations; it is not a universal Azure CMDB.
+A type catalog does not imply that Azure's generic listing returns every object of that type. Other nested resource types still require additional collectors. Function deployment slots, Service Bus topic subscriptions and SQL managed-instance databases are not expanded by these new collectors. Entra users/groups, enterprise applications/service principals, managed identities, agent identity blueprints, blobs, Kubernetes workloads, SaaS data, other tenant/management-group objects and sovereign clouds are outside this release. Subscription/resource-group containment, documented service relationships, supported configuration-derived connections and explicit infrastructure associations are created; diagrams are never generated. The export covers ARM infrastructure and enabled Entra app registrations; it is not a universal Azure CMDB.
 
 Individual missing-resource checks reduce false deletions from incomplete visibility. A provider's authorization-masked 404 still cannot be distinguished with certainty from deletion. Use a stable account with subscription-wide Reader permissions and review deletion counts.
 

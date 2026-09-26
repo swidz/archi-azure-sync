@@ -1,6 +1,6 @@
 # Design and source review
 
-Reviewed 2026-09-25. This is a jArchi JavaScript package, not an Archi modification or Eclipse plugin.
+Reviewed 2026-09-26. This is a jArchi JavaScript package, not an Archi modification or Eclipse plugin.
 
 ## Library choices
 
@@ -17,6 +17,7 @@ The adapter uses java.net.HttpURLConnection through Java.type. Protocol logic, s
 - lib/core.js — identity, scope, mappings, properties and change planning.
 - lib/azure-client.js — device authorization, inventory, pagination/retries, discovery and deletion verification.
 - lib/entra-applications.js — projected Microsoft Graph application collection, validated pagination, individual missing-object checks and isolated tenant-scoped planning.
+- lib/infrastructure.js — allowlisted metadata and tags, scoped Resource Graph enrichment, current ARM network reads, explicit resource-ID associations and per-owner coverage.
 - lib/connections.js — transient configuration reads, allowlist-based sanitization, exact target matching, binding direction and per-app evidence coverage.
 - lib/java-runtime.js — Java HTTPS and file operations.
 - lib/azure-cli.js — CLI session/token validation and safe command construction.
@@ -41,7 +42,7 @@ Entra app registrations use Node and a separate tenant/Object-ID identity. ARM v
 
 ## Explicit containment relationships
 
-Core planning builds tenant-qualified, case-insensitive parent/child identities from ARM IDs. Subscription Nodes compose resource group Nodes; group Nodes compose their member Node resources. Namespace Nodes additionally compose queues/topics, Function App Nodes assign Technology Functions, and SQL server Nodes serve database Nodes. Node-to-Technology-Function composition is rejected by Archi; Technology Functions therefore have no direct resource-group composition. Subscription-level resources do not acquire a synthetic Other parent. Missing parent Nodes are counted in the preview and skipped.
+Core planning builds tenant-qualified, case-insensitive parent/child identities from ARM IDs. Subscription Nodes compose resource group Nodes; group Nodes compose their member Node resources. Namespace Nodes additionally compose queues/topics, Function App Nodes serve Technology Functions, SQL server Nodes serve database Nodes, and VNet Nodes compose subnet Nodes. Node-to-Technology-Function composition is rejected by Archi; Technology Functions therefore have no direct resource-group composition. Subscription-level resources do not acquire a synthetic Other parent. Missing parent Nodes are counted in the preview and skipped.
 
 Before relationship indexing, the adapter identifies requested Function App → Technology Function Serving pairs by their actual endpoint GUIDs. It converts only script-owned structural Assignment links matching those readable pairs, using the public jArchi `.type` setter. The setter replaces the relationship concept (new relationship GUID), transfers properties and documentation, and updates existing diagram references. Source/target element GUIDs do not change. New concept IDs are marked visited to avoid counting diagram occurrences twice. Manual links, inferred connection links and absent/unreadable/unselected pairs are excluded. Subsequent syncs reuse the Serving link by endpoint GUIDs and type. See the [jArchi relationship type conversion implementation](https://github.com/archimatetool/archi-scripting-plugin/blob/master/com.archimatetool.script/src/com/archimatetool/script/dom/model/ArchimateRelationshipProxy.java).
 
@@ -49,9 +50,9 @@ After all concept operations, the adapter scans the entire model and indexes exi
 
 ## Coverage
 
-Inventory uses subscription Get, resource-group List and generic Resources List, then explicit [Service Bus, Functions and SQL child collectors](child-resources.md). Generic and child endpoint records merge only when the same child ARM identity appears in distinct sources. Duplicates within a single endpoint remain errors. Missing parents already in the model are verified before expansion, so recovered parents also have their children collected. Provider metadata supplies supported API versions for individually checking missing resources and exporting available types.
+Inventory uses subscription Get, resource-group List and generic Resources List, then explicit [Service Bus, Functions, SQL and subnet child collectors](child-resources.md). Generic and child endpoint records merge only when the same child ARM identity appears in distinct sources. Duplicates within a single endpoint remain errors. Missing parents already in the model are verified before expansion, so recovered parents also have their children collected. Provider metadata supplies supported API versions for individually checking missing resources and exporting available types.
 
-Resource Graph was considered, but indexed/type-specific coverage and permission-dependent results complicate absence handling. The implementation instead uses direct ARM lists plus individual checks. Neither a type catalog nor generic ARM inventory replaces every service's child/data-plane API.
+Resource Graph enriches resources already found by direct ARM inventory. It never introduces generic elements or establishes absence. Queries use one explicit subscription, paginate objectArray responses, and retain successful pages on recoverable failures. Missing indexed resources receive direct ARM detail fallback; NIC/private endpoint owners always receive current ARM reads before association retirement. Subnet lists provide authoritative reference projections. Only allowlisted fields survive collection. Neither a type catalog, indexed Resource Graph result nor generic ARM inventory replaces every service's child/data-plane API.
 
 Collectors run before model application and retain successful pages. Tagged acquisition errors are caught at subscription/list/child/existence-check boundaries; unknown exceptions and integrity violations propagate. Schema version 3 includes warnings, partial state and completed subscriptions. Any failed read disables all deletion within that subscription; partial Entra collection disables tenant app deletion. Fully read subscriptions still reconcile absent resources even if another subscription fails. See [partial synchronization](partial-sync.md) for model status and relationship handling.
 
@@ -63,7 +64,7 @@ The older overlay is historical context. It is not a dependency and no old plugi
 
 Real-runtime tests verify managed folders, relocation, custom images, Top Center placement, optional profiles, save/reload and relationship preservation. Model traversal normalizes diagram instances to underlying concepts, avoiding duplicate inventory entries when elements appear in views. objectRefs() identifies visual occurrences; .concept alone cannot distinguish a concept proxy from a diagram object.
 
-The child API versions are pinned to the documented control-plane contracts. Individual child absence checks use those versions without depending on provider type-discovery coverage. A child collection can paginate only within its exact collection path. The resource collector projects child payloads onto resource identity fields. Enabled connection discovery separately reads only supported binding fields from Function config; raw config, source files and invocation URLs are never persisted.
+The child API versions are pinned to the documented control-plane contracts. Individual child absence checks use those versions without depending on provider type-discovery coverage. A child collection can paginate only within its exact collection path. The resource collector projects child payloads onto resource identity fields. When enrichment is enabled, it additionally projects common metadata and subnet prefixes/policies/NSG references onto allowlisted structures. Enabled connection discovery separately reads only supported binding fields from Function config; raw config, source files and invocation URLs are never persisted.
 
 See [Entra application design and API contracts](entra-applications.md) for projected fields, consent, scope and export format.
 
@@ -86,3 +87,11 @@ See [Entra application design and API contracts](entra-applications.md) for proj
 ## Connection relationships
 
 See [connection discovery](connections.md). Raw settings are parsed and discarded inside the collector; its public snapshot contains only reconstructed evidence. Target matching uses current selected ARM resources. Configuration warnings are separate from ARM resource coverage. The adapter independently maintains connection-owned relationships, matching actual endpoint GUIDs/type, merging evidence for partially read apps and retiring absent evidence only with complete per-app coverage and reconciled endpoints. Relationships follow their actual source folders across selected subscriptions. Archi relationship validation occurs before the preview. Manual links remain unowned and unchanged.
+
+## Infrastructure relationships and ARI review
+
+See [infrastructure enrichment](infrastructure.md) for supported types, fields, association directions and API contracts. The implementation was informed by Microsoft ARI commit 579232984611a3a45ab47391f882867f3fd52b23, but no ARI source or PowerShell dependencies are included. Unlike an inventory report based solely on indexed data, model lifecycle decisions still require ARM coverage.
+
+The adapter shares one evidence-relationship reconciliation implementation between configuration connections and infrastructure associations. Their ownership kinds, evidence properties and completed-owner sets remain separate. Each matches actual source/target GUIDs and relationship type, preserves matching manual links, resolves folders from the actual source, and retires absent evidence only after complete owner reads with reconciled endpoints. ARG-only additions can be applied while preserving prior evidence when current ARM verification fails. Unselected or unresolved targets protect the owner's existing links.
+
+Metadata updates merge only supplied allowlisted fields into element operations. Per-resource enrichment coverage and timestamps are distinct from ARM element reconciliation. Disabling enrichment leaves previously imported subnets, their structural relationships, metadata and infrastructure associations unchanged. No extra configuration or credentials are persisted in model properties.

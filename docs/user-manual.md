@@ -98,8 +98,13 @@ At the top of **scripts/Sync Azure.ajs**:
 var AZURE_ROOT_FOLDER = "Azure";
 var AZURE_USE_SPECIALIZATIONS = false;
 var AZURE_INCLUDE_ENTRA_APPLICATIONS = true;
+var AZURE_DISCOVER_CONNECTIONS = true;
+var AZURE_ENRICH_INFRASTRUCTURE = true;
+var AZURE_TAG_KEYS = ["Environment", "Application", "Owner", "CostCenter"];
 ~~~
 
+- AZURE_ENRICH_INFRASTRUCTURE defaults to true. It imports selected properties, subnet Nodes and Associations from explicit infrastructure resource IDs. It uses Azure Resource Graph and ARM with your existing ARM token; it requires no additional plugin or Microsoft Graph scope. Set false to preserve existing enriched data and skip these reads.
+- AZURE_TAG_KEYS selects tag values to store as `Azure-Tag-<key>` properties. The defaults are Environment, Application, Owner and CostCenter; use [] to stop importing tags. Previously stored properties remain. See [infrastructure enrichment](infrastructure.md) for supported fields, links, permissions and coverage.
 - AZURE_ROOT_FOLDER controls the custom root name under both Technology & Physical and Relationships. The default creates Technology & Physical → Azure for elements and Relationships → Azure for generated links. It is a model-folder name, not a filesystem path.
 - AZURE_DISCOVER_CONNECTIONS defaults to true. It reads App Service/Function App settings and connection strings, then stores only sanitized evidence on inferred relationships. Set false to skip these reads. See [connection discovery](connections.md) for additional permissions, supported SQL/Service Bus/Storage formats and Function bindings.
 - AZURE_INCLUDE_ENTRA_APPLICATIONS defaults to true. It adds tenant-wide app registrations via Microsoft Graph; configure [Entra access](entra-applications.md) first. Set false for ARM-only runs, leaving existing app Nodes untouched. The Export utility has a separate flag with the same default.
@@ -116,9 +121,9 @@ Do not put passwords, client secrets, access tokens or refresh tokens in these f
 1. Create a new test model, or open a copy of your existing model. Select its root in the Models tree.
 2. Double-click **Sync Azure.ajs** in Scripts Manager.
 3. Choose your authentication method, tenant GUID and subscription GUIDs. Separate multiple subscription IDs with commas, semicolons or whitespace. Device sign-in also asks for the application client ID.
-4. Wait for collection and verification to finish, including queues/topics in Service Bus namespaces, individual Functions in Function Apps, databases on SQL logical servers, and enabled Entra app registrations. Direct device authentication presents a second sign-in for Microsoft Graph. The script performs read operations only.
-5. Review the create/update/restore/deletion counts, composition-link count and destination-folder preview. Cancel leaves the model unchanged. On an empty model, imported objects should be creations, with no deletions.
-6. Confirm application. Review the resulting folder tree, element properties and composition relationships. No diagrams are created.
+4. Wait for collection and verification to finish, including queues/topics in Service Bus namespaces, individual Functions in Function Apps, databases on SQL logical servers, enabled subnet/property/network enrichment, and enabled Entra app registrations. Direct device authentication presents a second sign-in for Microsoft Graph. The script performs read operations only.
+5. Review the create/update/restore/deletion counts, relationship counts and destination-folder preview, including infrastructure associations. Cancel leaves the model unchanged. On an empty model, imported objects should be creations, with no deletions.
+6. Confirm application. Review the resulting folder tree, element properties and relationships. Subnets use the Microsoft.Network/virtualNetworks/subnets folder; explicit network links use Association. No diagrams are created.
 7. Save the model manually. Commit it using your usual model Git/coArchi workflow when ready.
 
 The first run does not require any script in utils. If desired, utils/Export Azure Inventory.ajs can test connectivity and produce a JSON snapshot before modifying a model. Sync always fetches a fresh inventory from Azure; it does not import that JSON file.
@@ -189,6 +194,7 @@ The source element supplies the subscription, resource group and object type; th
 | Service Bus namespace | Queue or topic | Node | Composition |
 | Function App | Individual function | Technology Function | Serving |
 | SQL logical server | Database, including master when returned | Node | Serving |
+| VNet | Subnet (enrichment enabled) | Node | Composition |
 
 These are collected automatically by Sync and Export Azure Inventory. No additional setup script is required. Existing SQL databases are matched by ARM ID and receive serving relationships without duplicate Nodes. Find children under their existing subscription/resource-group/type folders; Azure-ParentObjectId identifies their parent.
 
@@ -201,6 +207,8 @@ See [child-resource discovery](child-resources.md) for permissions, scope and fa
 App registrations are **Node** elements under **Technology & Physical → Azure → Entra ID [tenant GUID] → App registrations**. Their subscription/group properties are empty. Azure-ObjectId stores the directory Object ID; Azure-ApplicationId stores the Application (Client) ID. All apps visible with tenant-wide read permission are collected once, independently of the subscription selection. No subscription or group relationships are generated for them. Repeat runs preserve Node identity and use the same soft-deletion rules.
 
 See [Entra connection and inventory details](entra-applications.md) for both authentication methods, permissions and properties.
+
+Selected properties (including location, SKU, VM size and configured tags) and explicit NIC/subnet/NSG/private-endpoint associations are described in the [infrastructure guide](infrastructure.md). These Associations describe Azure configuration; they do not infer triggering or runtime traffic.
 
 ## 8. Optional: add icons to diagrams
 
@@ -268,6 +276,8 @@ Version 0.5 makes custom icons entirely optional. If you previously customized i
 
 Run Sync Azure on a copy of the existing model first. The default next run reorganizes scoped elements and detaches script-owned specialization assignments without adding custom images. It preserves IDs, documentation and diagram layout, reuses existing containment relationships and creates any missing ones. Save/reopen and run again to verify no duplicate concepts or folders before using the updated script for your regular model.
 
+Version **0.13.0** adds selected resource properties/tags, subnet Nodes and explicit infrastructure Associations. Replace all libraries and the main/Export entry points together, including lib/infrastructure.js. No extra plugin or ARI installation is required. Run Sync normally; review the new counts and output warnings, then apply. The new AZURE_ENRICH_INFRASTRUCTURE flag defaults to true. It is independent of Entra and connection discovery; existing App Service configuration permission warnings can be avoided with AZURE_DISCOVER_CONNECTIONS=false while keeping enrichment enabled. See the [upgrade and acceptance steps](infrastructure.md#settings-and-first-run).
+
 Version **0.12.1** changes Function App → Technology Function relationships from **Assignment** to **Serving**. Run **Sync Azure.ajs** and apply the preview. Legacy script-owned links are converted automatically when both endpoints were read in the selected scope; no manual diagram redraw is needed. Existing diagram connections and their layout, source/target element GUIDs, creation timestamps, documentation and custom properties are retained. jArchi assigns the converted relationship a new GUID once, then later syncs reuse it. Manual relationships and unreadable or unselected Function links are not converted. The Scripts output and completion dialog report the conversion count. No diagrams are generated.
 
 Version 0.12 enables connection discovery by default. Replace all libraries and entry points together. Configuration reads require Microsoft.Web/sites/config/list/action; without it, warnings are reported and the rest of synchronization continues. Use AZURE_DISCOVER_CONNECTIONS=false to leave existing connection relationships untouched.
@@ -282,6 +292,6 @@ Version 0.8 expands the relationship folder tree to Azure → Source subscriptio
 
 ## 12. Scope and verification
 
-This is an Azure Resource Manager infrastructure inventory. Subscription/resource-group containers, generic ARM resources, Service Bus queues/topics, Function App functions, and SQL logical-server databases are included. Other child resources need additional collectors; adding their mapping alone does not make the collector enumerate them. Entra app registrations are included through Microsoft Graph. Enterprise applications/service principals, managed identities, other directory objects and data-plane contents remain outside this release.
+This is an Azure Resource Manager infrastructure inventory. Subscription/resource-group containers, generic ARM resources, Service Bus queues/topics, Function App functions, SQL logical-server databases, and enabled VNet subnets are included. Other child resources need additional collectors; adding their mapping alone does not make the collector enumerate them. Entra app registrations are included through Microsoft Graph. Enterprise applications/service principals, managed identities, other directory objects and data-plane contents remain outside this release.
 
 See [verification](verification.md) for executed tests and [catalog and icons](catalog.md) for editing mappings. The scripts run on demand and do not automatically save models, commit Git changes, or schedule future runs.

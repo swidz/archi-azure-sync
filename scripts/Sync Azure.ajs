@@ -8,12 +8,15 @@
     var AZURE_INCLUDE_ENTRA_APPLICATIONS = true;
     // Read application settings/connection strings; persist only sanitized evidence.
     var AZURE_DISCOVER_CONNECTIONS = true;
+    // Non-secret properties, subnet inventory and explicit infrastructure resource references.
+    var AZURE_ENRICH_INFRASTRUCTURE = true;
+    var AZURE_TAG_KEYS = ["Environment", "Application", "Owner", "CostCenter"];
 
     var root = String(Java.type("java.nio.file.Paths").get(__DIR__).getParent().toAbsolutePath());
-    ["lib/core.js", "lib/azure-client.js", "lib/entra-applications.js", "lib/connections.js", "lib/azure-cli.js", "lib/azure-cli-java.js", "lib/java-runtime.js", "lib/archi-adapter.js", "lib/app.js", "config/specializations.js"]
+    ["lib/core.js", "lib/azure-client.js", "lib/infrastructure.js", "lib/entra-applications.js", "lib/connections.js", "lib/azure-cli.js", "lib/azure-cli-java.js", "lib/java-runtime.js", "lib/archi-adapter.js", "lib/app.js", "config/specializations.js"]
         .forEach(function (file) { load(root + "/" + file); });
     AzureApp.run("sync", root, AZURE_SPECIALIZATIONS, {
         rootFolderName: AZURE_ROOT_FOLDER, useSpecializations: AZURE_USE_SPECIALIZATIONS,
-        discoverConnections: AZURE_DISCOVER_CONNECTIONS, includeEntraApplications: AZURE_INCLUDE_ENTRA_APPLICATIONS
+        enrichInfrastructure: AZURE_ENRICH_INFRASTRUCTURE, tagKeys: AZURE_TAG_KEYS, discoverConnections: AZURE_DISCOVER_CONNECTIONS, includeEntraApplications: AZURE_INCLUDE_ENTRA_APPLICATIONS
     });
 }());
