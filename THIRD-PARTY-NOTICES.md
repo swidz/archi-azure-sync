@@ -8,7 +8,7 @@ Microsoft publishes the following icon usage notice:
 
 > Microsoft permits the use of these icons in architectural diagrams, training materials, or documentation. You can copy, distribute, and display the icons only for the permitted use unless granted explicit permission by Microsoft. Microsoft reserves all other rights.
 
-**The project's MIT license does not apply to the Azure icons.** Microsoft's icon terms govern their use. A copy of this notice is included beside the assets in [Microsoft-Azure-Icons-NOTICE.md](assets/terms/Microsoft-Azure-Icons-NOTICE.md). The archive's original [terms of use](assets/terms/Microsoft_Terms_of_Use.pdf) and [FAQ](assets/terms/Azure_Icons_FAQ.pdf) are also retained.
+**The project's MIT license does not apply to the Azure icons.** Microsoft's icon terms govern their use. The [asset copyright file](assets/COPYRIGHT.md) and [Microsoft-Azure-Icons-NOTICE.md](assets/terms/Microsoft-Azure-Icons-NOTICE.md) include this notice in the runtime package. The archive's original [terms of use](assets/terms/Microsoft_Terms_of_Use.pdf) and [FAQ](assets/terms/Azure_Icons_FAQ.pdf) are also retained.
 
 ## Other third-party materials
 

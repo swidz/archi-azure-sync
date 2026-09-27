@@ -1,6 +1,6 @@
 {
   "name": "archi-azure-sync",
-  "version": "0.13.0",
+  "version": "0.13.1",
   "private": true,
   "license": "MIT",
   "description": "Organized Azure ARM inventory and icons for Archi/jArchi",

@@ -15,10 +15,10 @@ npm run release:zip -- HEAD
 By default, the ZIP and its .sha256 checksum are written to the ignored work/releases directory. An optional second argument selects an output directory:
 
 ~~~text
-node tools/build-release.cjs v0.13.0 path/to/output
+node tools/build-release.cjs v0.13.1 path/to/output
 ~~~
 
-The builder reads the package version and all contents from the specified commit, not uncommitted or untracked files. It checks JavaScript syntax, entry-point dependencies and mapped icons. A fixed allowlist includes the five scripts, ten libraries, catalog, icons and their index/provenance, user guides, licenses and third-party notices. RELEASE.json records the version and exact source commit. Tests, test results, development/research documentation, build tools, CI files, Git metadata, package.json, local exports and model files are excluded.
+The builder reads the package version and all contents from the specified commit, not uncommitted or untracked files. It checks JavaScript syntax, entry-point dependencies and mapped icons. A fixed allowlist includes the five scripts, ten libraries, catalog, icons and their index/provenance, user guides, licenses, assets/COPYRIGHT.md and third-party notices. RELEASE.json records the version and exact source commit. Tests, test results, development/research documentation, build tools, CI files, Git metadata, package.json, local exports and model files are excluded.
 
 ## Verify and publish
 

@@ -12,7 +12,7 @@ Resources default to ordinary Technology-layer **Nodes**; individual Azure Funct
 
 > Microsoft permits the use of these icons in architectural diagrams, training materials, or documentation. You can copy, distribute, and display the icons only for the permitted use unless granted explicit permission by Microsoft. Microsoft reserves all other rights.
 
-The project's MIT license does not apply to these icons. See the [Microsoft Azure icon notice](assets/terms/Microsoft-Azure-Icons-NOTICE.md) for source and distribution details.
+The project's MIT license does not apply to these icons. See the [asset copyright notice](assets/COPYRIGHT.md) for source and distribution details.
 
 Sync creates **unnamed composition relationships** from each subscription to its resource groups and from each resource group to its Node resources. It also collects Service Bus queues/topics, individual Azure Functions, SQL databases and VNet subnets with the [service relationships described here](docs/child-resources.md). Generated relationships follow their **source object** under **Relationships → Azure → Source subscription → Source resource group (or Other) → Source object type**, using the same AZURE_ROOT_FOLDER setting. Repeated runs search the entire model by actual **source element GUID + target element GUID + relationship type** and reuse existing links. **No script generates diagrams or diagram connections.**
 

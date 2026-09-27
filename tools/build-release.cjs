@@ -13,7 +13,7 @@ const selected=[
  'lib/core.js','lib/azure-client.js','lib/infrastructure.js','lib/entra-applications.js','lib/connections.js',
  'lib/azure-cli.js','lib/azure-cli-java.js','lib/java-runtime.js','lib/archi-adapter.js','lib/app.js',
  'config/specializations.js','config/catalog-provenance.json',
- 'assets/icons','assets/terms','assets/icon-index.json','assets/icon-provenance.json',
+ 'assets/icons','assets/terms','assets/COPYRIGHT.md','assets/icon-index.json','assets/icon-provenance.json',
  'docs/user-manual.md','docs/authentication.md','docs/catalog.md','docs/child-resources.md',
  'docs/entra-applications.md','docs/connections.md','docs/partial-sync.md','docs/infrastructure.md'
 ];
