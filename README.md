@@ -8,6 +8,12 @@ Resources default to ordinary Technology-layer **Nodes**; individual Azure Funct
 
 **Icons are optional. Sync Azure.ajs does not add custom images or change diagram image/text placement.** Run **scripts/utils/Apply Azure Appearance.ajs** only if you want Azure icons on Nodes you have manually placed in views. It runs locally, without Azure authentication. Bundled images have a maximum dimension of **48 pixels**; the utility defaults to images at **Top Center** and names at **Bottom Center**. Specializations remain off by default.
 
+**Azure icon copyright and usage:** The icons come from [Microsoft Azure architecture icons](https://learn.microsoft.com/en-us/azure/architecture/icons/) and are copyright Microsoft Corporation. Microsoft states:
+
+> Microsoft permits the use of these icons in architectural diagrams, training materials, or documentation. You can copy, distribute, and display the icons only for the permitted use unless granted explicit permission by Microsoft. Microsoft reserves all other rights.
+
+The project's MIT license does not apply to these icons. See the [Microsoft Azure icon notice](assets/terms/Microsoft-Azure-Icons-NOTICE.md) for source and distribution details.
+
 Sync creates **unnamed composition relationships** from each subscription to its resource groups and from each resource group to its Node resources. It also collects Service Bus queues/topics, individual Azure Functions, SQL databases and VNet subnets with the [service relationships described here](docs/child-resources.md). Generated relationships follow their **source object** under **Relationships → Azure → Source subscription → Source resource group (or Other) → Source object type**, using the same AZURE_ROOT_FOLDER setting. Repeated runs search the entire model by actual **source element GUID + target element GUID + relationship type** and reuse existing links. **No script generates diagrams or diagram connections.**
 
 Entra app registrations are imported as **Nodes** under **Azure → Entra ID [tenant GUID] → App registrations**. This is enabled by default and requires Microsoft Graph read access. Denied Graph access is reported in the Scripts output window; readable ARM resources still synchronize. See [Entra setup and scope](docs/entra-applications.md) before your first upgraded run; set AZURE_INCLUDE_ENTRA_APPLICATIONS=false for ARM-only sync.

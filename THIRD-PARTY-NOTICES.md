@@ -1,7 +1,18 @@
 # Third-party materials
 
+## Microsoft Azure icons
+
+The Azure icons are sourced from [Microsoft Azure architecture icons](https://learn.microsoft.com/en-us/azure/architecture/icons/) and are **copyright Microsoft Corporation**. This repository uses the [Microsoft V24 icon archive](https://arch-center.azureedge.net/icons/Azure_Public_Service_Icons_V24.zip); the bundled PNG files are rasterizations of its SVGs.
+
+Microsoft publishes the following icon usage notice:
+
+> Microsoft permits the use of these icons in architectural diagrams, training materials, or documentation. You can copy, distribute, and display the icons only for the permitted use unless granted explicit permission by Microsoft. Microsoft reserves all other rights.
+
+**The project's MIT license does not apply to the Azure icons.** Microsoft's icon terms govern their use. A copy of this notice is included beside the assets in [Microsoft-Azure-Icons-NOTICE.md](assets/terms/Microsoft-Azure-Icons-NOTICE.md). The archive's original [terms of use](assets/terms/Microsoft_Terms_of_Use.pdf) and [FAQ](assets/terms/Azure_Icons_FAQ.pdf) are also retained.
+
+## Other third-party materials
+
 - Resource-type identifiers derive from [Azure/bicep-types-az](https://github.com/Azure/bicep-types-az). Source details are in config/catalog-provenance.json and its MIT license is retained in assets/terms/bicep-types-az-LICENSE.
-- Azure icons originate from the supplied [Microsoft V24 ZIP](https://arch-center.azureedge.net/icons/Azure_Public_Service_Icons_V24.zip). PNG files are rasterizations of the SVGs. Microsoft retains its rights. Original terms and FAQ are in assets/terms; icon use remains subject to Microsoft's terms.
 - Archi and jArchi are separately installed, not redistributed here.
 - The maintainer rasterization tool uses separately installed JSVG; its binaries are not included.
 - torchlight-azure was reviewed as historical context; no source/binary files were copied.
