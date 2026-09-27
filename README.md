@@ -163,3 +163,7 @@ npm run check
 The real-runtime **tests/archi-smoke.ajs** creates a disposable model, checks jArchi APIs, embeds icons, saves/reloads, preserves relationships and installs the complete catalog twice. Run through jArchi/ACLI in a separate test workspace. Outputs go to the ignored work directory. Archi CLI can return exit code zero after a script error: require the **ARCHI_AZURE_SMOKE_PASSED** marker and a fresh work/archi-smoke-result.json.
 
 See the [verification record](docs/verification.md) for executed checks and remaining live-tenant validation.
+
+## License
+
+Original project source is available under the [MIT License](LICENSE). Azure icons and other third-party materials retain their separate licenses and usage terms; see [third-party notices](THIRD-PARTY-NOTICES.md).

@@ -6,4 +6,4 @@
 - The maintainer rasterization tool uses separately installed JSVG; its binaries are not included.
 - torchlight-azure was reviewed as historical context; no source/binary files were copied.
 
-Original project source has not been assigned an open-source license in this initial local repository. Choose a license before public distribution.
+Original project source is licensed under the [MIT License](LICENSE), copyright (c) 2026 Sebastian Widz. Third-party materials retain their own licenses and terms; the project MIT license does not replace the terms for Microsoft Azure icons or other third-party assets.
