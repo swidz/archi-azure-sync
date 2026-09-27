@@ -95,3 +95,23 @@ See [infrastructure enrichment](infrastructure.md) for supported types, fields, 
 The adapter shares one evidence-relationship reconciliation implementation between configuration connections and infrastructure associations. Their ownership kinds, evidence properties and completed-owner sets remain separate. Each matches actual source/target GUIDs and relationship type, preserves matching manual links, resolves folders from the actual source, and retires absent evidence only after complete owner reads with reconciled endpoints. ARG-only additions can be applied while preserving prior evidence when current ARM verification fails. Unselected or unresolved targets protect the owner's existing links.
 
 Metadata updates merge only supplied allowlisted fields into element operations. Per-resource enrichment coverage and timestamps are distinct from ARM element reconciliation. Disabling enrichment leaves previously imported subnets, their structural relationships, metadata and infrastructure associations unchanged. No extra configuration or credentials are persisted in model properties.
+
+## Development checks
+
+Install Node.js 20+ and run `npm test` and `npm run check` from a source checkout. Real-runtime tests in tests/*.ajs use disposable Archi models; see [verification](verification.md). GitHub Actions runs the offline checks on Windows, Ubuntu and macOS. See [release packaging](releasing.md) for building the installation ZIP.
+
+## Catalog and icon maintenance
+
+Maintainers can regenerate a catalog for review with:
+
+~~~text
+node tools/build-catalog.cjs path/to/bicep-generated-index.json <source-commit>
+~~~
+
+This writes config/specializations.generated.js and updates provenance/icon index, leaving the user-edited specializations.js untouched. Merge deliberately and preserve the curated Microsoft.Graph/applications mapping, which is not in the Bicep index.
+
+To recreate PNGs, use a JDK and JSVG 2.1.0 (available in Archi 5.10 plugins):
+
+~~~text
+java -Djava.awt.headless=true -cp "path/to/jsvg.jar" tools/RasterizeIcons.java "path/to/unpacked/Icons" assets/icons
+~~~

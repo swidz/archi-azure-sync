@@ -4,13 +4,13 @@ For a fresh installation, run **Sync Azure.ajs**. The four scripts in **scripts/
 
 ## 1. Download from GitHub
 
-On this repository's GitHub page, choose **Code → Download ZIP**, then extract the complete archive. Alternatively, copy the HTTPS URL from **Code** and run:
+On [the GitHub repository](https://github.com/swidz/archi-azure-sync), open **Releases** and select [the latest release](https://github.com/swidz/archi-azure-sync/releases/latest). Under **Assets**, download **archi-azure-sync-<version>.zip**. Use this named runtime asset; GitHub's **Source code (zip)** and **Source code (tar.gz)** downloads include development files.
 
-~~~sh
-git clone "PASTE-THE-HTTPS-URL-FROM-GITHUB" archi-azure-sync
-~~~
+Find your existing jArchi Scripts folder under **Preferences → Scripting**, then extract the ZIP directly into that folder. The archive already contains its own **archi-azure-sync** folder: do not create a second nested folder of the same name. Preserve the entire extracted layout. The runtime needs lib, config and assets beside scripts.
 
-Keep the complete extracted/cloned folder. Do not download only the .ajs files or only the scripts directory. The runtime needs sibling lib, config and assets directories.
+The runtime ZIP contains the five entry-point scripts, their libraries, mappings, Azure icons, user guides and license/third-party notices. Tests, build tools, CI configuration, npm metadata, test results and local inventory/model files are excluded. RELEASE.json identifies the installed version and source commit. The adjacent .sha256 asset is an optional checksum, not a file you must install.
+
+For development, clone `https://github.com/swidz/archi-azure-sync.git` instead. Node.js is used only for development and packaging.
 
 ~~~text
 archi-azure-sync/
@@ -30,7 +30,7 @@ archi-azure-sync/
     └── user-manual.md
 ~~~
 
-The repository ZIP is not an Archi plugin and should not be installed through Manage Plug-ins.
+The runtime ZIP is not an Archi plugin and should not be installed through Manage Plug-ins.
 
 ## 2. Install Archi and jArchi
 
@@ -44,7 +44,7 @@ No Node.js, Python, Azure Java SDK, additional JAR files, or old torchlight-azur
 
 Open **Scripts Manager** from Archi's **Tools** menu. Find your Scripts folder in **Preferences → Scripting** (the Preferences menu location varies by operating system).
 
-The simplest installation is to place the complete archi-azure-sync folder inside your existing jArchi Scripts folder. For example on Windows:
+After extracting the release ZIP directly into your existing jArchi Scripts folder, the layout should be as follows. For example on Windows:
 
 ~~~text
 C:\Users\YOUR-NAME\Documents\Archi\scripts\
@@ -266,7 +266,7 @@ Turning the main script's specialization flag off detaches script-owned speciali
 
 ## 11. Upgrade an existing installation
 
-Save your model and keep any custom mapping changes. Download/extract the new complete package or update your clone, preserving local edits to config/specializations.js and your chosen settings in both Sync Azure.ajs and Apply Azure Appearance.ajs. Git users should review local changes before pulling.
+Save your model and keep any custom mapping changes. Download/extract the new runtime ZIP from Releases or update your source clone, preserving local edits to config/specializations.js and your chosen settings in both Sync Azure.ajs and Apply Azure Appearance.ajs. Git users should review local changes before pulling.
 
 Replace runtime files and assets, including the updated 48-pixel PNGs. Keep all four utility entry points under scripts/utils. Remove stale copies/links at the old scripts root after verifying that their new counterparts exist. Refresh Scripts Manager or restart Archi. Do not move your Azure inventory/discovery exports into the repository as part of the upgrade.
 
@@ -294,4 +294,4 @@ Version 0.8 expands the relationship folder tree to Azure → Source subscriptio
 
 This is an Azure Resource Manager infrastructure inventory. Subscription/resource-group containers, generic ARM resources, Service Bus queues/topics, Function App functions, SQL logical-server databases, and enabled VNet subnets are included. Other child resources need additional collectors; adding their mapping alone does not make the collector enumerate them. Entra app registrations are included through Microsoft Graph. Enterprise applications/service principals, managed identities, other directory objects and data-plane contents remain outside this release.
 
-See [verification](verification.md) for executed tests and [catalog and icons](catalog.md) for editing mappings. The scripts run on demand and do not automatically save models, commit Git changes, or schedule future runs.
+See [verification](https://github.com/swidz/archi-azure-sync/blob/main/docs/verification.md) for executed tests and [catalog and icons](catalog.md) for editing mappings. The scripts run on demand and do not automatically save models, commit Git changes, or schedule future runs.

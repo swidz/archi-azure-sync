@@ -4,6 +4,6 @@
   "private": true,
   "license": "MIT",
   "description": "Organized Azure ARM inventory and icons for Archi/jArchi",
-  "scripts": {"test": "node --test tests/*.test.cjs", "check": "node tools/check.cjs"},
+  "scripts": {"test": "node --test tests/*.test.cjs", "check": "node tools/check.cjs", "release:zip": "node tools/build-release.cjs"},
   "engines": {"node": ">=20"}
 }

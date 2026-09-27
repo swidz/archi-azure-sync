@@ -29,13 +29,7 @@ There is no timeless list of all public/private/preview Azure service types. The
 
 Compare the exported list in Git/an editor, copy desired new rows into config/specializations.js and choose icons. The script does not automatically overwrite comments or custom mappings.
 
-Maintainers can regenerate the public snapshot:
-
-~~~text
-node tools/build-catalog.cjs path/to/bicep-generated-index.json <source-commit>
-~~~
-
-This writes config/specializations.generated.js for review and updates provenance/icon index. It leaves the user's specializations.js untouched. Review and merge the output; preserve the separately curated Microsoft.Graph/applications row, which is not in the Bicep index or ARM provider discovery. The extra generated copy need not be committed.
+Maintainer build tools are available in the source repository; see [catalog regeneration](https://github.com/swidz/archi-azure-sync/blob/main/docs/design.md#catalog-and-icon-maintenance).
 
 ## Icons
 
@@ -53,10 +47,6 @@ These defaults do not claim a unique service icon for every type. Edit any third
 
 When explicitly enabled, native profiles use model.createSpecialization() and element.specialization. The optional profile manager can install profile icons, and Archi may display these through its profile inheritance. Sync never switches diagram image sources; the appearance utility explicitly selects custom images. No script creates diagrams or connections. Once saved, embedded icons do not depend on their original filesystem path.
 
-Maintainers can recreate PNGs with a JDK and JSVG 2.1.0, available in Archi 5.10's plugins:
-
-~~~text
-java -Djava.awt.headless=true -cp "path/to/jsvg.jar" tools/RasterizeIcons.java "path/to/unpacked/Icons" assets/icons
-~~~
+See [icon maintenance](https://github.com/swidz/archi-azure-sync/blob/main/docs/design.md#catalog-and-icon-maintenance) for rebuilding assets from the original SVGs.
 
 Sources: [Bicep type definitions](https://github.com/Azure/bicep-types-az), [provider discovery](https://learn.microsoft.com/en-us/rest/api/resources/providers/list?view=rest-resources-2021-04-01), [Azure icon guidance](https://learn.microsoft.com/en-us/azure/architecture/icons/), [supplied V24 archive](https://arch-center.azureedge.net/icons/Azure_Public_Service_Icons_V24.zip), [jArchi model API](https://github.com/archimatetool/archi-scripting-plugin/wiki/Model).

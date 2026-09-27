@@ -109,4 +109,4 @@ The approach was informed by reviewing [Microsoft Azure Resource Inventory (ARI)
 
 API references: [Resource Graph overview](https://learn.microsoft.com/en-us/azure/governance/resource-graph/overview), [Resource Graph Resources query, 2024-04-01](https://learn.microsoft.com/en-us/rest/api/azureresourcegraph/resourcegraph/resources/resources?view=rest-azureresourcegraph-resourcegraph-2024-04-01), and [Subnets List, 2025-09-01](https://learn.microsoft.com/en-us/rest/api/virtualnetwork/subnets/list?view=rest-virtualnetwork-2025-09-01). Other ARM detail reads use provider metadata to select a supported API version, preferring stable versions.
 
-See [verification](verification.md) for the offline and real Archi tests. Infrastructure collection has been exercised with synthetic responses and disposable models; live tenant acceptance remains necessary.
+See [verification](https://github.com/swidz/archi-azure-sync/blob/main/docs/verification.md) for the offline and real Archi tests. Infrastructure collection has been exercised with synthetic responses and disposable models; live tenant acceptance remains necessary.

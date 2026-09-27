@@ -18,9 +18,9 @@ Infrastructure enrichment adds selected properties and tags, subnet Nodes, and *
 
 ## Quick start
 
-1. From this GitHub repository choose **Code → Download ZIP** and extract the whole package, or clone the HTTPS URL from Code.
+1. Open [Releases](https://github.com/swidz/archi-azure-sync/releases/latest) and download **archi-azure-sync-<version>.zip** under Assets. Extract it directly into your existing jArchi Scripts folder; the ZIP creates one archi-azure-sync folder. Choose the named runtime ZIP, not GitHub's automatically generated Source code archives.
 2. Install **Archi 5.8+ / Java 21 and jArchi 1.12+**, using the GraalVM JavaScript engine. No Node.js, Python or extra JARs are needed for normal use.
-3. Put the complete package in your existing jArchi Scripts folder, or point **Preferences → Scripting → Scripts folder** at this package's scripts directory. Keep lib, config and assets beside scripts. See the [manual](docs/user-manual.md#3-make-the-scripts-visible) for links and other installation options.
+3. In Scripts Manager, expand **archi-azure-sync → scripts** and run **Sync Azure.ajs**. Alternatively, point **Preferences → Scripting → Scripts folder** at the extracted package's scripts directory. Keep lib, config and assets beside scripts. See the [manual](docs/user-manual.md#3-make-the-scripts-visible) for links and other installation options.
 4. [Connect to Azure](docs/authentication.md): either run **az login** using Azure CLI 2.54+ and select **Azure CLI (no own app registration)**, or choose direct device sign-in using your public-client app. Both methods support user sign-in/MFA without a client secret in the model.
 5. Select a test model, run **Sync Azure.ajs**, enter tenant/subscription IDs, review the preview and apply. No utility script is required first.
 6. Review, save and commit the model using your usual workflow. **Optional:** after manually placing elements in a view, run **utils/Apply Azure Appearance.ajs** if you want icons and label positioning. Skip it for plain Archi shapes.
@@ -149,20 +149,11 @@ A type catalog does not imply that Azure's generic listing returns every object 
 
 Individual missing-resource checks reduce false deletions from incomplete visibility. A provider's authorization-masked 404 still cannot be distinguished with certainty from deletion. Use a stable account with subscription-wide Reader permissions and review deletion counts.
 
-See [design and research](docs/design.md) for SDK alternatives, torchlight-azure and sources.
+See [design and research](https://github.com/swidz/archi-azure-sync/blob/main/docs/design.md) for SDK alternatives, torchlight-azure and sources.
 
 ## Development
 
-Node.js 20+ is needed **only for offline development tests**:
-
-~~~text
-npm test
-npm run check
-~~~
-
-The real-runtime **tests/archi-smoke.ajs** creates a disposable model, checks jArchi APIs, embeds icons, saves/reloads, preserves relationships and installs the complete catalog twice. Run through jArchi/ACLI in a separate test workspace. Outputs go to the ignored work directory. Archi CLI can return exit code zero after a script error: require the **ARCHI_AZURE_SMOKE_PASSED** marker and a fresh work/archi-smoke-result.json.
-
-See the [verification record](docs/verification.md) for executed checks and remaining live-tenant validation.
+Development tools and tests are available in the [source repository](https://github.com/swidz/archi-azure-sync), separate from the runtime ZIP. See [development and design](https://github.com/swidz/archi-azure-sync/blob/main/docs/design.md), [verification](https://github.com/swidz/archi-azure-sync/blob/main/docs/verification.md), and [release packaging](https://github.com/swidz/archi-azure-sync/blob/main/docs/releasing.md).
 
 ## License
 
