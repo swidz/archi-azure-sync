@@ -64,3 +64,9 @@ The included GitHub Actions workflow runs offline tests on Windows, Ubuntu and m
 9. Save and round-trip through the model collaboration tool, including folders and custom icons.
 
 Step 5 is a manual acceptance test. These scripts perform no Azure deletion.
+
+## Version 0.14 selective synchronization
+
+199 offline tests pass, including selected-type scope, two consecutive disjoint selections, selected deletion, partial access, cancellation, Graph-only scope and properties-only refresh. The new Windows Archi 5.10 / jArchi 1.12 native selection suite passes 18 assertions using synthetic resources and a disposable model: it verifies native full-catalog filtering/selection/cancellation, actual element and relationship preservation, selected queue deletion/restoration, labels/custom properties/folders, no new views/profiles, separate refresh status and save/reload. Result: [selection-smoke-result.json](test-results/selection-smoke-result.json). This is not a live Azure permission test or a native Linux/macOS UI test.
+
+The seven pre-existing native model suites also passed after integration (186 assertions). Combined with the new 18-assertion suite, this provides 204 native assertions.

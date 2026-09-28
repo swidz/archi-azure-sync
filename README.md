@@ -22,13 +22,23 @@ Connection discovery reads App Service/Function App configuration and creates **
 
 Infrastructure enrichment adds selected properties and tags, subnet Nodes, and **Association** links from explicit network resource IDs. Enabled by default; it uses Azure Resource Graph with ARM fallback and current ARM reads before retiring links. No additional runtime or Microsoft Graph permission is needed for this feature. See [infrastructure settings, fields and coverage](docs/infrastructure.md).
 
+## Choose what to synchronize
+
+**Sync Azure.ajs now opens a searchable checkbox list of Azure object types before sign-in/collection.** Use Clear all, filter, then tick the types you want. The last successfully applied selection is remembered in the model. All types keeps the previous full-inventory behavior, including uncatalogued types.
+
+**Changing the type selection never marks unselected objects deleted.** Their timestamps and relationships remain untouched. Required parent objects, resource groups and subscriptions are included for organization; only explicitly selected types are eligible for independently verified soft deletion.
+
+For example, import Microsoft.Web/sites/functions and Microsoft.ServiceBus/namespaces/queues first, then select Microsoft.Compute/virtualMachines on a later run: the earlier Functions and queues remain in the model.
+
+**utils/Refresh Azure Properties.ajs** lists the existing managed Azure objects and refreshes only the checked identities. It adds no elements or relationships, preserves Archi names/folders/diagrams, and leaves missing or denied objects untouched. See [type selection and property refresh](docs/selective-sync.md).
+
 ## Quick start
 
 1. Open [Releases](https://github.com/swidz/archi-azure-sync/releases/latest) and download **archi-azure-sync-<version>.zip** under Assets. Extract it directly into your existing jArchi Scripts folder; the ZIP creates one archi-azure-sync folder. Choose the named runtime ZIP, not GitHub's automatically generated Source code archives.
 2. Install **Archi 5.8+ / Java 21 and jArchi 1.12+**, using the GraalVM JavaScript engine. No Node.js, Python or extra JARs are needed for normal use.
 3. In Scripts Manager, expand **archi-azure-sync → scripts** and run **Sync Azure.ajs**. Alternatively, point **Preferences → Scripting → Scripts folder** at the extracted package's scripts directory. Keep lib, config and assets beside scripts. See the [manual](docs/user-manual.md#3-make-the-scripts-visible) for links and other installation options.
 4. [Connect to Azure](docs/authentication.md): either run **az login** using Azure CLI 2.54+ and select **Azure CLI (no own app registration)**, or choose direct device sign-in using your public-client app. Both methods support user sign-in/MFA without a client secret in the model.
-5. Select a test model, run **Sync Azure.ajs**, enter tenant/subscription IDs, review the preview and apply. No utility script is required first.
+5. Select a test model, run **Sync Azure.ajs**, enter tenant/subscription IDs, select object types, review the preview and apply. No utility script is required first.
 6. Review, save and commit the model using your usual workflow. **Optional:** after manually placing elements in a view, run **utils/Apply Azure Appearance.ajs** if you want icons and label positioning. Skip it for plain Archi shapes.
 
 All selected subscriptions in one run must belong to the specified tenant. Enabled Entra collection reads that whole tenant once, independently of the subscription list. Unselected subscriptions and other tenants' elements remain untouched. Azure public cloud is supported.
@@ -39,6 +49,7 @@ At the top of scripts/Sync Azure.ajs:
 
 ~~~javascript
 var AZURE_ROOT_FOLDER = "Azure";
+var AZURE_SELECT_OBJECT_TYPES = true;
 var AZURE_USE_SPECIALIZATIONS = false;
 var AZURE_INCLUDE_ENTRA_APPLICATIONS = true;
 var AZURE_DISCOVER_CONNECTIONS = true;
@@ -65,6 +76,7 @@ Positions accept top/middle/bottom combined with left/center/right, for example 
 | --- | --- |
 | scripts/Sync Azure.ajs | Collect and verify inventory, preview changes, create/update/soft-delete elements, organize folders and maintain containment, service, connection and infrastructure relationships. Does not add custom images or format diagrams. |
 | scripts/utils/Apply Azure Appearance.ajs | Optional: locally apply custom icons and image/name positions to managed Azure objects already placed in views. No Azure connection or sync-timestamp changes. |
+| scripts/utils/Refresh Azure Properties.ajs | Select existing managed objects and refresh properties only, preserving names, folders, diagrams, relationships and unreadable objects. |
 | scripts/utils/Export Azure Inventory.ajs | Save actual inventory as JSON without modifying the model. |
 | scripts/utils/Discover Azure Resource Types.ajs | Export provider-advertised types for manual catalog review; does not merge them automatically. |
 | scripts/utils/Manage Azure Specializations.ajs | Optional offline bulk profile maintenance, explicitly guarded by its own false-by-default flag. Not needed for synchronization. |

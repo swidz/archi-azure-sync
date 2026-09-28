@@ -9,12 +9,12 @@ const output=path.resolve(process.argv[3] || path.join(root,'work','releases'));
 const selected=[
  'README.md','LICENSE','THIRD-PARTY-NOTICES.md',
  'scripts/Sync Azure.ajs','scripts/utils/Apply Azure Appearance.ajs','scripts/utils/Export Azure Inventory.ajs',
- 'scripts/utils/Discover Azure Resource Types.ajs','scripts/utils/Manage Azure Specializations.ajs',
+ 'scripts/utils/Discover Azure Resource Types.ajs','scripts/utils/Manage Azure Specializations.ajs','scripts/utils/Refresh Azure Properties.ajs',
  'lib/core.js','lib/azure-client.js','lib/infrastructure.js','lib/entra-applications.js','lib/connections.js',
- 'lib/azure-cli.js','lib/azure-cli-java.js','lib/java-runtime.js','lib/archi-adapter.js','lib/app.js',
+ 'lib/selection.js','lib/refresh.js','lib/azure-cli.js','lib/azure-cli-java.js','lib/java-runtime.js','lib/archi-adapter.js','lib/app.js',
  'config/specializations.js','config/catalog-provenance.json',
  'assets/icons','assets/terms','assets/COPYRIGHT.md','assets/icon-index.json','assets/icon-provenance.json',
- 'docs/user-manual.md','docs/authentication.md','docs/catalog.md','docs/child-resources.md',
+ 'docs/user-manual.md','docs/selective-sync.md','docs/authentication.md','docs/catalog.md','docs/child-resources.md',
  'docs/entra-applications.md','docs/connections.md','docs/partial-sync.md','docs/infrastructure.md'
 ];
 const entries=git('ls-tree','-r','--name-only',commit,'--',...selected).trim().split('\n');

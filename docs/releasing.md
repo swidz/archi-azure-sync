@@ -15,15 +15,15 @@ npm run release:zip -- HEAD
 By default, the ZIP and its .sha256 checksum are written to the ignored work/releases directory. An optional second argument selects an output directory:
 
 ~~~text
-node tools/build-release.cjs v0.13.1 path/to/output
+node tools/build-release.cjs v0.14.0 path/to/output
 ~~~
 
-The builder reads the package version and all contents from the specified commit, not uncommitted or untracked files. It checks JavaScript syntax, entry-point dependencies and mapped icons. A fixed allowlist includes the five scripts, ten libraries, catalog, icons and their index/provenance, user guides, licenses, assets/COPYRIGHT.md and third-party notices. RELEASE.json records the version and exact source commit. Tests, test results, development/research documentation, build tools, CI files, Git metadata, package.json, local exports and model files are excluded.
+The builder reads the package version and all contents from the specified commit, not uncommitted or untracked files. It checks JavaScript syntax, entry-point dependencies and mapped icons. A fixed allowlist includes the six scripts, twelve libraries, catalog, icons and their index/provenance, user guides, licenses, assets/COPYRIGHT.md and third-party notices. RELEASE.json records the version and exact source commit. Tests, test results, development/research documentation, build tools, CI files, Git metadata, package.json, local exports and model files are excluded.
 
 ## Verify and publish
 
 1. Inspect the ZIP entries and extract into an empty temporary directory. Check the single package root and the sibling scripts/lib/config/assets layout.
-2. Verify every loaded library and mapped icon exists after extraction, and that the bundled Markdown links resolve locally or point to GitHub documentation. The five .ajs files should be the only runnable entry points; no test scripts belong in the package.
+2. Verify every loaded library and mapped icon exists after extraction, and that the bundled Markdown links resolve locally or point to GitHub documentation. The six .ajs files should be the only runnable entry points; no test scripts belong in the package.
 3. Confirm the version and commit in RELEASE.json and compare the SHA-256 digest with the adjacent checksum file.
 4. Tag the verified commit as v<version>. Create a GitHub release draft for that tag and upload the runtime ZIP and checksum. Publish only after confirming both uploaded assets match the verified files.
 5. Release notes should link the user manual and explain extracting directly into the jArchi Scripts folder. Remind users to preserve custom script settings and mappings when upgrading.

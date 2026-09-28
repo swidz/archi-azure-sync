@@ -1,7 +1,7 @@
 
 const test=require("node:test"),assert=require("node:assert/strict"),fs=require("node:fs"),path=require("node:path"),vm=require("node:vm");
 const root=path.resolve(__dirname,"..");
-for(const [file,mode] of [["Sync Azure.ajs","sync"],["utils/Apply Azure Appearance.ajs","appearance"],["utils/Export Azure Inventory.ajs","export"],["utils/Discover Azure Resource Types.ajs","catalog"],["utils/Manage Azure Specializations.ajs","specializations"]]) {
+for(const [file,mode] of [["Sync Azure.ajs","sync"],["utils/Refresh Azure Properties.ajs","refresh"],["utils/Apply Azure Appearance.ajs","appearance"],["utils/Export Azure Inventory.ajs","export"],["utils/Discover Azure Resource Types.ajs","catalog"],["utils/Manage Azure Specializations.ajs","specializations"]]) {
     test("entry point resolves the whole package: "+file,()=>{
         const script=path.join(root,"scripts",file),loaded=[],calls=[];
         function javaPath(p){return {getParent:()=>javaPath(path.dirname(p)),toAbsolutePath:()=>path.resolve(p)};}
@@ -10,7 +10,7 @@ for(const [file,mode] of [["Sync Azure.ajs","sync"],["utils/Apply Azure Appearan
             load:p=>{assert.ok(fs.existsSync(p),p);loaded.push(p);},AZURE_SPECIALIZATIONS:[],
             AzureApp:{run:(...args)=>calls.push(args)}
         });
-        assert.equal(calls[0][0],mode);assert.equal(calls[0][1],root);assert.equal(loaded.length,mode==="sync"||mode==="export"?11:8);
+        assert.equal(calls[0][0],mode);assert.equal(calls[0][1],root);assert.equal(loaded.length,mode==="sync"||mode==="refresh"?12:mode==="export"?11:8);
         if(mode==="sync"||mode==="export"){assert.equal(calls[0][3].includeEntraApplications,true);assert.equal(calls[0][3].discoverConnections,true);assert.equal(calls[0][3].enrichInfrastructure,true);}
         if(mode==="sync") { assert.equal(calls[0][3].imagePosition,undefined); assert.equal(calls[0][3].textPosition,undefined); }
         if(mode==="appearance") { assert.equal(calls[0][3].imagePosition,"top-center"); assert.equal(calls[0][3].textPosition,"bottom-center"); }

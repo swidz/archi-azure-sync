@@ -1,6 +1,6 @@
 # User manual
 
-For a fresh installation, run **Sync Azure.ajs**. The four scripts in **scripts/utils** are optional tools for inspection and maintenance; there is no mandatory discovery, icon or specialization-installation step. **Icons are optional and are never applied by the standard sync script.**
+For a fresh installation, run **Sync Azure.ajs**. The five scripts in **scripts/utils** are optional tools for inspection and maintenance; there is no mandatory discovery, icon or specialization-installation step. **Icons are optional and are never applied by the standard sync script.**
 
 ## 1. Download from GitHub
 
@@ -8,7 +8,7 @@ On [the GitHub repository](https://github.com/swidz/archi-azure-sync), open **Re
 
 Find your existing jArchi Scripts folder under **Preferences → Scripting**, then extract the ZIP directly into that folder. The archive already contains its own **archi-azure-sync** folder: do not create a second nested folder of the same name. Preserve the entire extracted layout. The runtime needs lib, config and assets beside scripts.
 
-The runtime ZIP contains the five entry-point scripts, their libraries, mappings, Azure icons, user guides and license/third-party notices. Tests, build tools, CI configuration, npm metadata, test results and local inventory/model files are excluded. RELEASE.json identifies the installed version and source commit. The adjacent .sha256 asset is an optional checksum, not a file you must install.
+The runtime ZIP contains the six entry-point scripts, their libraries, mappings, Azure icons, user guides and license/third-party notices. Tests, build tools, CI configuration, npm metadata, test results and local inventory/model files are excluded. RELEASE.json identifies the installed version and source commit. The adjacent .sha256 asset is an optional checksum, not a file you must install.
 
 For development, clone `https://github.com/swidz/archi-azure-sync.git` instead. Node.js is used only for development and packaging.
 
@@ -17,6 +17,7 @@ archi-azure-sync/
 ├── scripts/
 │   ├── Sync Azure.ajs                  ← everyday entry point
 │   └── utils/
+│       ├── Refresh Azure Properties.ajs
 │       ├── Apply Azure Appearance.ajs
 │       ├── Export Azure Inventory.ajs
 │       ├── Discover Azure Resource Types.ajs
@@ -96,6 +97,7 @@ At the top of **scripts/Sync Azure.ajs**:
 
 ~~~javascript
 var AZURE_ROOT_FOLDER = "Azure";
+var AZURE_SELECT_OBJECT_TYPES = true;
 var AZURE_USE_SPECIALIZATIONS = false;
 var AZURE_INCLUDE_ENTRA_APPLICATIONS = true;
 var AZURE_DISCOVER_CONNECTIONS = true;
@@ -103,6 +105,7 @@ var AZURE_ENRICH_INFRASTRUCTURE = true;
 var AZURE_TAG_KEYS = ["Environment", "Application", "Owner", "CostCenter"];
 ~~~
 
+- AZURE_SELECT_OBJECT_TYPES defaults to true. Sync opens a searchable checkbox list and remembers the last applied selection. Choose All types for a complete inventory. Set this flag to false only to always synchronize all enabled types without the popup; it bypasses the saved selection. Unselected types are never marked deleted.
 - AZURE_ENRICH_INFRASTRUCTURE defaults to true. It imports selected properties, subnet Nodes and Associations from explicit infrastructure resource IDs. It uses Azure Resource Graph and ARM with your existing ARM token; it requires no additional plugin or Microsoft Graph scope. Set false to preserve existing enriched data and skip these reads.
 - AZURE_TAG_KEYS selects tag values to store as `Azure-Tag-<key>` properties. The defaults are Environment, Application, Owner and CostCenter; use [] to stop importing tags. Previously stored properties remain. See [infrastructure enrichment](infrastructure.md) for supported fields, links, permissions and coverage.
 - AZURE_ROOT_FOLDER controls the custom root name under both Technology & Physical and Relationships. The default creates Technology & Physical → Azure for elements and Relationships → Azure for generated links. It is a model-folder name, not a filesystem path.
@@ -121,10 +124,11 @@ Do not put passwords, client secrets, access tokens or refresh tokens in these f
 1. Create a new test model, or open a copy of your existing model. Select its root in the Models tree.
 2. Double-click **Sync Azure.ajs** in Scripts Manager.
 3. Choose your authentication method, tenant GUID and subscription GUIDs. Separate multiple subscription IDs with commas, semicolons or whitespace. Device sign-in also asks for the application client ID.
-4. Wait for collection and verification to finish, including queues/topics in Service Bus namespaces, individual Functions in Function Apps, databases on SQL logical servers, enabled subnet/property/network enrichment, and enabled Entra app registrations. Direct device authentication presents a second sign-in for Microsoft Graph. The script performs read operations only.
-5. Review the create/update/restore/deletion counts, relationship counts and destination-folder preview, including infrastructure associations. Cancel leaves the model unchanged. On an empty model, imported objects should be creations, with no deletions.
-6. Confirm application. Review the resulting folder tree, element properties and relationships. Subnets use the Microsoft.Network/virtualNetworks/subnets folder; explicit network links use Association. No diagrams are created.
-7. Save the model manually. Commit it using your usual model Git/coArchi workflow when ready.
+4. In **Azure object types**, leave All Azure types checked for a full inventory, or click **Clear all**, filter, and tick the desired rows. **Select shown** checks every filtered row; checked rows remain selected when you change the filter. Individual Functions are Microsoft.Web/sites/functions; Service Bus queues are Microsoft.ServiceBus/namespaces/queues. See [the selection guide](selective-sync.md).
+5. Wait for sign-in, collection and verification of the selected types and their required parents. Graph sign-in occurs only when Entra applications are enabled and selected. The script performs read operations only.
+6. Review the create/update/restore/deletion counts, relationship counts and destination-folder preview, including infrastructure associations. Cancel leaves the model unchanged. On an empty model, imported objects should be creations, with no deletions.
+7. Confirm application. Review the resulting folder tree, element properties and relationships. Subnets use the Microsoft.Network/virtualNetworks/subnets folder; explicit network links use Association. No diagrams are created.
+8. Save the model manually. Commit it using your usual model Git/coArchi workflow when ready.
 
 The first run does not require any script in utils. If desired, utils/Export Azure Inventory.ajs can test connectivity and produce a JSON snapshot before modifying a model. Sync always fetches a fresh inventory from Azure; it does not import that JSON file.
 
@@ -244,10 +248,11 @@ Run Sync Azure.ajs with AZURE_DISCOVER_CONNECTIONS=true. Select subscriptions co
 
 1. Open your model. For CLI authentication, refresh sign-in with az login if the session requires it.
 2. Run **Sync Azure.ajs**. The last successfully used authentication method and IDs are offered again.
-3. Review the counts and apply.
-4. Inspect changes, save, and commit as appropriate.
+3. Review or change the remembered type selection. Previously imported types that you leave unchecked remain untouched. Necessary parents can still be refreshed as context for selected children.
+4. Review the counts and apply.
+5. Inspect changes, save, and commit as appropriate.
 
-Existing ARM elements are matched by tenant and ARM resource ID. Entra applications use tenant and Graph Object ID. A repeat run does not create duplicates. CreatedDate/CreatedTime remain unchanged; LastSyncDate/LastSyncTime advance on successful application. Confirmed missing resources remain in the model with IsDeleted=yes and deletion timestamps. If the same ARM ID returns, the original element is restored and deletion timestamps cleared.
+Existing ARM elements are matched by tenant and ARM resource ID. Entra applications use tenant and Graph Object ID. A repeat run does not create duplicates. CreatedDate/CreatedTime remain unchanged; LastSyncDate/LastSyncTime advance on successful application. Only explicitly selected types are eligible for soft deletion. Confirmed missing resources remain in the model with IsDeleted=yes and deletion timestamps. If the same ARM ID returns, the original element is restored and deletion timestamps cleared.
 
 Read/permission failures now appear as **[WARNING]** lines in the Scripts output window. The run continues and offers the objects it could read. A **completed with warnings** result is partial: unreadable elements and relationships stay unchanged, and no deletion occurs in incomplete scopes. Review the warnings, fix access if needed, and run Sync again. No additional setting is required. See [error handling and partial synchronization](partial-sync.md).
 
@@ -257,6 +262,7 @@ Cancellation, invalid tenant/identity data, unsafe pagination and model conflict
 
 | Utility under scripts/utils | When to use it |
 | --- | --- |
+| Refresh Azure Properties.ajs | List existing managed Azure elements, choose which to refresh, and update their properties by individual Azure reads. Creates no elements/relationships and preserves missing or denied objects. See [steps and scope](selective-sync.md#refresh-properties-on-existing-model-objects). |
 | Apply Azure Appearance.ajs | After manually placing Nodes on a view, apply icons and image/name placement locally. Covers all managed Azure diagram occurrences in the selected model, without Azure authentication or sync-timestamp changes. |
 | Export Azure Inventory.ajs | Inspect actual Azure resources and compare inventory with mappings. Saves JSON; does not change the model. Store exports outside your model Git repository. |
 | Discover Azure Resource Types.ajs | Review provider-advertised types for catalog maintenance. Saves JavaScript rows with blank icons. Results include operation/status entries and are not automatically merged. |
@@ -268,7 +274,9 @@ Turning the main script's specialization flag off detaches script-owned speciali
 
 Save your model and keep any custom mapping changes. Download/extract the new runtime ZIP from Releases or update your source clone, preserving local edits to config/specializations.js and your chosen settings in both Sync Azure.ajs and Apply Azure Appearance.ajs. Git users should review local changes before pulling.
 
-Replace runtime files and assets, including the updated 48-pixel PNGs. Keep all four utility entry points under scripts/utils. Remove stale copies/links at the old scripts root after verifying that their new counterparts exist. Refresh Scripts Manager or restart Archi. Do not move your Azure inventory/discovery exports into the repository as part of the upgrade.
+Replace runtime files and assets, including the updated 48-pixel PNGs. Keep all five utility entry points under scripts/utils. Remove stale copies/links at the old scripts root after verifying that their new counterparts exist. Refresh Scripts Manager or restart Archi. Do not move your Azure inventory/discovery exports into the repository as part of the upgrade.
+
+Version 0.14 adds the type-selection dialog and Refresh Azure Properties utility. Replace the libraries as well as the entry points: the dialog uses lib/selection.js and the refresh utility also needs lib/refresh.js. No additional plugin is required.
 
 Version 0.6 adds child collectors and service relationships. Preserve any local catalog edits while merging the Microsoft.Web/sites/functions mapping to technology-function. If Functions were already imported as Nodes, the script stops before mutation on that type change; deliberately change their type in Archi, or retain the Node mapping to use composition.
 

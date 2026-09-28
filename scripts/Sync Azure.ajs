@@ -3,6 +3,8 @@
     // Used under both Technology & Physical and Relationships.
     // Relationship subfolders follow the source resource: subscription / group / ARM type.
     var AZURE_ROOT_FOLDER = "Azure";
+    // Ask which Azure types to synchronize; remembers the last successfully applied selection.
+    var AZURE_SELECT_OBJECT_TYPES = true;
     var AZURE_USE_SPECIALIZATIONS = false;
     // Tenant-wide app registrations require Microsoft Graph access in addition to ARM Reader.
     var AZURE_INCLUDE_ENTRA_APPLICATIONS = true;
@@ -13,10 +15,10 @@
     var AZURE_TAG_KEYS = ["Environment", "Application", "Owner", "CostCenter"];
 
     var root = String(Java.type("java.nio.file.Paths").get(__DIR__).getParent().toAbsolutePath());
-    ["lib/core.js", "lib/azure-client.js", "lib/infrastructure.js", "lib/entra-applications.js", "lib/connections.js", "lib/azure-cli.js", "lib/azure-cli-java.js", "lib/java-runtime.js", "lib/archi-adapter.js", "lib/app.js", "config/specializations.js"]
+    ["lib/core.js", "lib/azure-client.js", "lib/infrastructure.js", "lib/entra-applications.js", "lib/connections.js", "lib/azure-cli.js", "lib/azure-cli-java.js", "lib/java-runtime.js", "lib/archi-adapter.js", "lib/selection.js", "lib/app.js", "config/specializations.js"]
         .forEach(function (file) { load(root + "/" + file); });
     AzureApp.run("sync", root, AZURE_SPECIALIZATIONS, {
-        rootFolderName: AZURE_ROOT_FOLDER, useSpecializations: AZURE_USE_SPECIALIZATIONS,
+        promptForTypes: AZURE_SELECT_OBJECT_TYPES, rootFolderName: AZURE_ROOT_FOLDER, useSpecializations: AZURE_USE_SPECIALIZATIONS,
         enrichInfrastructure: AZURE_ENRICH_INFRASTRUCTURE, tagKeys: AZURE_TAG_KEYS, discoverConnections: AZURE_DISCOVER_CONNECTIONS, includeEntraApplications: AZURE_INCLUDE_ENTRA_APPLICATIONS
     });
 }());

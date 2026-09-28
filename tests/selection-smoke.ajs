@@ -1,0 +1,61 @@
+/* Synthetic resources and a disposable model; no live Azure credentials or user models. */
+(function() {
+    var Paths=Java.type('java.nio.file.Paths'),root=String(Paths.get(__DIR__).getParent().toAbsolutePath());
+    ['lib/core.js','lib/azure-client.js','lib/infrastructure.js','lib/entra-applications.js','lib/java-runtime.js','lib/archi-adapter.js','lib/selection.js','lib/refresh.js','config/specializations.js'].forEach(function(f){load(root+'/'+f);});
+    var C=AzureCore,checks=[];function ok(value,message){C.assert(value,message);checks.push(message);}
+    var tenant='aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa',sub='11111111-1111-1111-1111-111111111111',base='/subscriptions/'+sub,rg=base+'/resourceGroups/test';
+    var app={id:rg+'/providers/Microsoft.Web/sites/app',type:'Microsoft.Web/sites',name:'app'},bus={id:rg+'/providers/Microsoft.ServiceBus/namespaces/bus',type:'Microsoft.ServiceBus/namespaces',name:'bus'};
+    var fn={id:app.id+'/functions/run',type:app.type+'/functions',name:'app/run'},queue={id:bus.id+'/queues/jobs',type:bus.type+'/queues',name:'jobs'},vm={id:rg+'/providers/Microsoft.Compute/virtualMachines/vm',type:'Microsoft.Compute/virtualMachines',name:'vm'};
+    var info={subscriptionId:sub,tenantId:tenant,displayName:'Test',state:'Enabled'},mapping=C.mappings(AZURE_SPECIALIZATIONS),clock='2026-09-28T10:00:00Z';
+    var all=[{id:base,type:'Microsoft.Resources/subscriptions',name:'Test'},{id:rg,type:'Microsoft.Resources/resourceGroups',name:'test'},app,bus,fn,queue,vm].map(function(r){return C.normalize(r,info,tenant);});
+    var m=$.model.create('Selective Azure sync smoke');m.setAsCurrent();
+    function elements(){return AzureArchi.readElements(m);}
+    function concept(id){var result;$(m).find('element').each(function(e){e=e.concept||e;if(String(e.prop('Azure-ObjectId'))===id)result=e;});return result;}
+    function links(){var result=[],seen={};$(m).find('relationship').each(function(r){r=r.concept||r;if(!seen[String(r.id)]){seen[String(r.id)]=true;result.push(r);}});return result;}
+    function fingerprint(e){return JSON.stringify([String(e.id),String(e.name),String($(e).parent().first().id),Array.from(e.prop()).sort().map(function(k){return [String(k),String(e.prop(String(k)))];})]);}
+    function apply(types,resources,missing){var opts={selectedTypes:types,enrichInfrastructure:true};var snapshot={schemaVersion:3,tenantId:tenant,subscriptionIds:[sub],completedSubscriptions:[sub],resources:resources||all,confirmedMissing:missing||[],collectedAt:clock,partial:false,warnings:[]};var p=C.plan(elements(),snapshot,mapping,opts);AzureArchi.apply(m,p,opts);return p;}
+    apply([fn.type,queue.type]);
+    ok(!!concept(fn.id)&&!!concept(queue.id)&&!concept(vm.id),'First type selection creates Functions and queues, not VMs');
+    var functionNode=concept(fn.id),queueNode=concept(queue.id),functionBefore=fingerprint(functionNode),queueBefore=fingerprint(queueNode),linkBefore={};
+    links().filter(function(r){return String(r.source.id)===String(functionNode.id)||String(r.target.id)===String(functionNode.id)||String(r.source.id)===String(queueNode.id)||String(r.target.id)===String(queueNode.id);}).forEach(function(r){linkBefore[String(r.id)]=fingerprint(r);});
+    ok(Object.keys(linkBefore).length>=3,'Selected children have serving/composition relationships');
+    clock='2026-09-29T11:00:00Z';apply([vm.type]);
+    ok(!!concept(vm.id),'Second type selection creates the requested VM');
+    ok(fingerprint(functionNode)===functionBefore&&fingerprint(queueNode)===queueBefore,'Unselected Function and queue keep all properties, GUIDs, names and folders');
+    ok(links().filter(function(r){return linkBefore[String(r.id)];}).every(function(r){return fingerprint(r)===linkBefore[String(r.id)];}),'Links touching unselected children remain byte-for-byte unchanged');
+    var queueLinks=links().filter(function(r){return String(r.target.id)===String(queueNode.id);});
+    clock='2026-09-30T12:00:00Z';apply([queue.type],all.filter(function(r){return r.id!==queue.id;}),[C.identity(tenant,queue.id)]);
+    ok(String(queueNode.prop('IsDeleted'))==='yes'&&queueLinks.every(function(r){return String(r.prop('IsDeleted'))==='yes';}),'Confirmed absence of a selected queue retires only its owned links');
+    ok(fingerprint(functionNode)===functionBefore,'Selected queue deletion leaves Function untouched');
+    clock='2026-10-01T12:00:00Z';apply([queue.type]);
+    ok(String(queueNode.prop('IsDeleted'))==='no'&&String(queueNode.id)===JSON.parse(queueBefore)[0],'Reselecting queue restores its existing GUID');
+    var vmNode=concept(vm.id);vmNode.name='Architect label';vmNode.prop('ArchitectNote','Keep');
+    var vmFolder=String($(vmNode).parent().first().id),countBefore=elements().length,relsBefore=JSON.stringify(links().map(fingerprint)),lastFull=String(m.prop('Azure-LastSuccessfulSyncAt'));
+    var existing=elements().filter(function(e){return e.id===String(vmNode.id);}),r=C.normalize(Object.assign({},vm,{name:'Renamed in Azure'}),info,tenant);
+    r.refreshedMetadata=AzureInfrastructure.project(Object.assign({},vm,{location:'westeurope',properties:{hardwareProfile:{vmSize:'Standard_B2s'}}}),{},true,true);
+    var snap={schemaVersion:3,tenantId:tenant,subscriptionIds:[sub],completedSubscriptions:[sub],resources:[r],confirmedMissing:[],collectedAt:'2026-10-02T15:00:00Z',partial:false,warnings:[]};
+    var plan=AzureRefresh.plan(existing,snap,{enrichInfrastructure:true});AzureArchi.applyProperties(m,plan);
+    ok(String(vmNode.name)==='Architect label'&&String(vmNode.prop('Azure-ObjectName'))==='Renamed in Azure','Property refresh preserves the architect label and updates Azure-ObjectName');
+    ok(String(vmNode.prop('Azure-VMSize'))==='Standard_B2s'&&String(vmNode.prop('LastSyncDate'))==='2026-10-02','Property refresh updates allowlisted metadata and timestamps');
+    ok(String($(vmNode).parent().first().id)===vmFolder&&String(vmNode.prop('ArchitectNote'))==='Keep','Property refresh preserves folders and custom properties');
+    ok(elements().length===countBefore&&JSON.stringify(links().map(fingerprint))===relsBefore,'Property refresh creates no elements and changes no relationships');
+    ok(String(m.prop('Azure-LastSuccessfulSyncAt'))===lastFull&&String(m.prop('Azure-LastPropertyRefreshAt'))===plan.clock.iso,'Property refresh has separate model status from inventory sync');
+    ok($(m).find('view').size()===0&&m.specializations.length===0,'Neither workflow creates diagrams or specializations');
+    // Exercise real native SWT filtering/checking/cancellation at full catalog size.
+    var SWT=Java.type('org.eclipse.swt.SWT'),Event=Java.type('org.eclipse.swt.widgets.Event'),display=Java.type('org.eclipse.swt.widgets.Display').getCurrent();
+    var uiError=null;
+    function schedule(action){display.timerExec(100,function(){var dialog;try{var shells=display.getShells();for(var i=0;i<shells.length;i++)if(String(shells[i].getText())==='Selection smoke')dialog=shells[i];C.assert(dialog,'Selection dialog was not created');var controls=[];function walk(p){var cs=p.getChildren();for(var j=0;j<cs.length;j++){controls.push(cs[j]);if(typeof cs[j].getChildren==='function')walk(cs[j]);}}walk(dialog);action(dialog,controls);}catch(e){uiError=String(e.message||e);if(dialog&&!dialog.isDisposed())dialog.close();}});}
+    function click(controls,label){var b=controls.filter(function(c){return String(c.getClass().getSimpleName())==='Button'&&String(c.getText())===label;})[0];C.assert(b,'Missing button '+label);b.notifyListeners(SWT.Selection,new Event());}
+    var typeRows=AzureSelection.typeRows(mapping,[],{includeEntraApplications:true,enrichInfrastructure:true});
+    schedule(function(dialog,controls){click(controls,'Clear all');var text=controls.filter(function(c){return String(c.getClass().getSimpleName())==='Text';})[0];text.setText('— service bus queues');click(controls,'Select shown');text.setText('individual azure functions');click(controls,'Select shown');click(controls,'Continue');});
+    var chosen=AzureSelection.choose('Selection smoke','Choose types',typeRows,null,true);C.assert(!uiError,uiError);
+    ok(chosen&&!chosen.all&&chosen.ids.length===2&&chosen.ids.indexOf(C.lower(fn.type))>=0&&chosen.ids.indexOf(C.lower(queue.type))>=0,'Native checkbox dialog filters full catalog and retains checked hidden rows');
+    schedule(function(dialog,controls){click(controls,'Cancel');});
+    ok(AzureSelection.choose('Selection smoke','Cancel',typeRows,null,true)===null,'Native dialog cancellation returns no selection');C.assert(!uiError,uiError);
+    schedule(function(dialog,controls){click(controls,'Continue');});
+    ok(AzureSelection.choose('Selection smoke','All',typeRows,null,true).all,'Native all-types mode includes future uncatalogued types');C.assert(!uiError,uiError);
+    var dir=AzureJava.resolve(root,'work');Java.type('java.nio.file.Files').createDirectories(Paths.get(dir));m.save(dir+'/selection-smoke.archimate');var loaded=$.model.load(dir+'/selection-smoke.archimate');
+    ok(AzureArchi.readElements(loaded).length===countBefore,'Selected inventory and refreshed properties survive save/reload');
+    AzureJava.write(dir+'/selection-smoke-result.json',JSON.stringify({status:'passed',archi:String($.process.release.archiVersion),jArchi:String($.process.release.jArchiVersion),checks:checks},null,2));
+    console.log('ARCHI_SELECTION_SMOKE_PASSED');
+}());

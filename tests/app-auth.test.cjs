@@ -4,7 +4,8 @@ function app(method="azure-cli", overrides={}, options, mode="sync", confirm=tru
     const props={"Azure-ClientId":H.clientId,...overrides}, prompts=[], calls=[], alerts=[],tokens=[],logs=[];
     function bearer(resource){const t={accessToken:"fake",expiresAt:9999999999999,resource:resource||"arm",tenantId:H.tenant};tokens.push(t);return t;}
     const context={
-        AzureCore:H.C, console:{log:s=>logs.push(s)},
+        AzureSelection:{types:()=>scenario.selectedTypes, elements:items=>scenario.cancelElements ? null : items},
+        AzureRefresh:require("../lib/refresh.js"), AzureCore:H.C, console:{log:s=>logs.push(s)},
         model:{isSet:()=>true,prop:function(k,v){if(arguments.length===2)props[k]=v;return props[k];}},
         window:{
             promptSelection:(label,choices)=>{calls.push(["choices",...choices]);return method===null?null:
@@ -19,9 +20,9 @@ function app(method="azure-cli", overrides={}, options, mode="sync", confirm=tru
         AzureCli:{signIn:(io,cfg,resource)=>{calls.push(["cli",cfg,resource]);if(scenario.authFailure)scenario.authFailure(cfg,resource);return bearer(resource);}},
         AzureClient:{
             deviceLogin:(io,cfg,display,resource)=>{calls.push(["device",cfg,resource]);return bearer(resource);},
-            create:()=>({...scenario.armClient,inventory:(cfg,existing,o)=>{if(scenario.onInventory)scenario.onInventory(o);return scenario.snapshot || H.snapshot();}})
+            create:()=>({...scenario.armClient,refresh:(cfg,existing,o)=>{calls.push(["refreshed",existing]);return scenario.snapshot || H.snapshot();},inventory:(cfg,existing,o)=>{if(scenario.onInventory)scenario.onInventory(o);return scenario.snapshot || H.snapshot();}})
         },
-        AzureArchi:{prepareAppearance:()=>({count:2}),applyAppearance:(m,a,o)=>calls.push(["appearance",o]),readElements:()=>[],prepareImages:()=>{throw Error("Sync must not prepare images");},prepareProfiles:(m,map,root,remove,includeImages)=>{calls.push(["profiles-planned",includeImages]);return {};},applyProfiles:()=>calls.push(["profiles-applied"]),
+        AzureArchi:{prepareAppearance:()=>({count:2}),applyAppearance:(m,a,o)=>calls.push(["appearance",o]),readElements:()=>scenario.existing || [],applyProperties:(m,p)=>calls.push(["properties-applied",p]),prepareImages:()=>{throw Error("Sync must not prepare images");},prepareProfiles:(m,map,root,remove,includeImages)=>{calls.push(["profiles-planned",includeImages]);return {};},applyProfiles:()=>calls.push(["profiles-applied"]),
             apply:(m,p,o)=>calls.push(["applied",o,p])}
     };
     vm.runInNewContext(fs.readFileSync(require.resolve("../lib/app.js"),"utf8"),context);
@@ -185,4 +186,23 @@ test('enrichment denial leaves resource sync available and disabling performs no
 test('export includes projected enrichment and coverage without model mutation',()=>{
  const scenario=infrastructureScenario(),r=app('azure-cli',{}, {enrichInfrastructure:true},'export',true,false,scenario),s=r.calls.find(c=>c[0]==='exported')[1];
  assert.equal(s.infrastructure.version,1);assert.equal(s.infrastructure.metadata.length,1);assert.equal(s.status,'complete');assert.ok(!JSON.stringify(s).includes('SECRET'));assert.ok(!r.calls.some(c=>c[0]==='applied'));
+});
+
+test('cancelling the type popup stops before Azure authentication or model changes',()=>{
+ const r=app('azure-cli',{}, {promptForTypes:true},'sync',true,false,{selectedTypes:undefined});assert.ok(!r.calls.some(c=>['cli','device','applied'].includes(c[0])));assert.equal(r.props['Azure-SelectedObjectTypes'],undefined);
+});
+test('successful type selection is forwarded and persisted; cancelling preview preserves old selection',()=>{
+ for(const confirm of [true,false]){let opts;const r=app('azure-cli',{'Azure-SelectedObjectTypes':'null'},{promptForTypes:true,includeEntraApplications:true},'sync',confirm,false,{selectedTypes:[H.raw.type],onInventory:o=>opts=o});assert.deepEqual(Array.from(opts.selectedTypes),[H.raw.type.toLowerCase()]);assert.ok(!r.calls.some(c=>c[0]==='graph-inventory'));assert.equal(r.props['Azure-SelectedObjectTypes'],confirm?JSON.stringify([H.raw.type.toLowerCase()]):'null');}
+});
+test('Graph-only type selection skips ARM sign-in and preserves existing ARM objects',()=>{
+ const r=app('azure-cli',{}, {promptForTypes:true,includeEntraApplications:true},'sync',true,false,{selectedTypes:[H.C.ENTRA_APPLICATION_TYPE],existing:[H.existing()]});assert.ok(!r.calls.some(c=>c[0]==='cli'&&c[2]===undefined));const p=r.calls.find(c=>c[0]==='applied')[2];assert.equal(p.operations.length,1);assert.equal(p.counts.deleted,0);assert.equal(p.operations[0].properties['Azure-ObjectType'],H.C.ENTRA_APPLICATION_TYPE);
+});
+test('refresh mode lists existing objects and applies properties only, leaving full-sync selection intact',()=>{
+ const r=app('azure-cli',{'Azure-SelectedObjectTypes':'["microsoft.web/sites"]'}, {},'refresh',true,false,{existing:[H.existing()]});assert.ok(r.calls.some(c=>c[0]==='refreshed'));assert.ok(r.calls.some(c=>c[0]==='properties-applied'));assert.ok(!r.calls.some(c=>c[0]==='applied'||c[0].startsWith('profiles')));assert.equal(r.props['Azure-SelectedObjectTypes'],'["microsoft.web/sites"]');assert.ok(r.tokens.every(t=>t.accessToken===null));
+});
+test('cancelling the object list or property preview causes no property writes',()=>{
+ for(const cancelElements of [true,false]){const r=app('azure-cli',{}, {},'refresh',false,false,{existing:[H.existing()],cancelElements});assert.ok(!r.calls.some(c=>c[0]==='properties-applied'));if(cancelElements)assert.ok(!r.calls.some(c=>c[0]==='cli'));}
+});
+test('empty refresh scope or denied ARM authentication preserves all model objects',()=>{
+ for(const existing of [[],[H.existing()]]){const r=app('azure-cli',{}, {},'refresh',true,false,{existing,authFailure:()=>{throw H.C.readError('Denied');}});assert.ok(!r.calls.some(c=>c[0]==='properties-applied'||c[0]==='applied'));}
 });

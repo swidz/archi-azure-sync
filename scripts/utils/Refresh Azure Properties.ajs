@@ -1,0 +1,11 @@
+(function () {
+    // Refresh selected, already managed model elements without discovering new resources.
+    var AZURE_INCLUDE_ENTRA_APPLICATIONS = true;
+    var AZURE_ENRICH_INFRASTRUCTURE = true;
+    var AZURE_TAG_KEYS = ["Environment", "Application", "Owner", "CostCenter"];
+    var root = String(Java.type("java.nio.file.Paths").get(__DIR__).getParent().getParent().toAbsolutePath());
+    ["lib/core.js", "lib/azure-client.js", "lib/infrastructure.js", "lib/entra-applications.js", "lib/azure-cli.js", "lib/azure-cli-java.js", "lib/java-runtime.js", "lib/archi-adapter.js", "lib/selection.js", "lib/refresh.js", "lib/app.js", "config/specializations.js"]
+        .forEach(function(file) { load(root + "/" + file); });
+    AzureApp.run("refresh", root, AZURE_SPECIALIZATIONS, {includeEntraApplications:AZURE_INCLUDE_ENTRA_APPLICATIONS,
+        enrichInfrastructure:AZURE_ENRICH_INFRASTRUCTURE, tagKeys:AZURE_TAG_KEYS});
+}());

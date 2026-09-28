@@ -1,0 +1,25 @@
+{
+  "status": "passed",
+  "archi": "5.10.0.202608252016",
+  "jArchi": "1.12.0.202604070605",
+  "checks": [
+    "First type selection creates Functions and queues, not VMs",
+    "Selected children have serving/composition relationships",
+    "Second type selection creates the requested VM",
+    "Unselected Function and queue keep all properties, GUIDs, names and folders",
+    "Links touching unselected children remain byte-for-byte unchanged",
+    "Confirmed absence of a selected queue retires only its owned links",
+    "Selected queue deletion leaves Function untouched",
+    "Reselecting queue restores its existing GUID",
+    "Property refresh preserves the architect label and updates Azure-ObjectName",
+    "Property refresh updates allowlisted metadata and timestamps",
+    "Property refresh preserves folders and custom properties",
+    "Property refresh creates no elements and changes no relationships",
+    "Property refresh has separate model status from inventory sync",
+    "Neither workflow creates diagrams or specializations",
+    "Native checkbox dialog filters full catalog and retains checked hidden rows",
+    "Native dialog cancellation returns no selection",
+    "Native all-types mode includes future uncatalogued types",
+    "Selected inventory and refreshed properties survive save/reload"
+  ]
+}

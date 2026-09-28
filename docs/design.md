@@ -115,3 +115,9 @@ To recreate PNGs, use a JDK and JSVG 2.1.0 (available in Archi 5.10 plugins):
 ~~~text
 java -Djava.awt.headless=true -cp "path/to/jsvg.jar" tools/RasterizeIcons.java "path/to/unpacked/Icons" assets/icons
 ~~~
+
+## Type scope and properties-only refresh
+
+See [selective synchronization](selective-sync.md). selectedTypes is normalized and carried from collection into planning; a mismatched scope aborts. Resource-type filtered ARM lists include supported child-parent types. After child expansion, resources are reduced to explicit selected types plus required ancestors. Existence checks and deletion reconciliation apply only to explicitly selected types. Structural relationship updates require both reconciled endpoints even on complete runs.
+
+lib/selection.js implements searchable SWT checkbox dialogs and selection state independent of filtering. lib/refresh.js plans properties-only updates from individually read, already selected identities. AzureArchi.applyProperties validates every planned element before writing and never invokes folder, profile, name or relationship updates. Missing/denied reads are skipped rather than used as deletion evidence.
